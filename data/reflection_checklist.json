@@ -1,0 +1,82 @@
+{
+  "version": "0.1",
+  "status": "DRAFT",
+  "basis": "교통영향평가 지침 [시행 2021.4.13, 국토교통부고시 제2021-317호] 본문 제1~22조 + 별표 1. https://www.law.go.kr/LSW//admRulInfoP.do?admRulSeq=2100000200035&chrClsCd=010201",
+  "scope": "건축물(공동주택) 교통영향평가 보고서. 개발사업·도로·철도는 제외.",
+  "not_yet_reviewed": [
+    "별표 2(문제점 도출·개선대책 내용), 별표 3(대상사업별 중점분석항목), 별표 7(계량 지표), 별표 8(비계량 점검표), 별지 1호(분석표 서식)",
+    "지침 제23조 이후(약식평가, 보고서 규격 등)",
+    "서울특별시 교통영향평가 수립지침·조례 (URL 만료로 미확보)",
+    "도시교통정비 촉진법 시행령 별표 1 (공동주택의 평가 대상 최소규모 — 제5조 공간적 범위의 평가 대상사업 범위 기준값)",
+    "최근년도 도로용량편람 (LOS 기준)"
+  ],
+  "check_types": {
+    "key": "보고서 구조화 데이터에 해당 key가 있으면 통과 (자동)",
+    "manual": "사람이 확인해야 하는 항목 (체크리스트 출력만)"
+  },
+  "items": [
+    {"id": "S1-1", "ref": "별표1 1.가", "text": "사업의 개요", "check": "key", "key": "intro.overview"},
+    {"id": "S1-2", "ref": "별표1 1.나", "text": "교통영향평가 사유 및 시기의 적정성", "check": "key", "key": "intro.reason_timing"},
+    {"id": "S1-3", "ref": "별표1 1.다", "text": "교통영향평가 범위(시간적·공간적 범위 및 중점분석 항목)", "check": "key", "key": "intro.scope"},
+    {"id": "S1-4", "ref": "별표1 1.라", "text": "결과 요약: 중점분석 항목별 결과, 교통영향분석 및 문제점, 종합개선안", "check": "key", "key": "intro.summary"},
+    {"id": "S2-1", "ref": "별표1 2.가", "text": "교통시설 및 교통소통현황", "check": "key", "key": "survey.facilities_traffic"},
+    {"id": "S2-2", "ref": "별표1 2.나", "text": "토지이용현황·토지이용계획 및 주변지역개발계획", "check": "key", "key": "survey.landuse"},
+    {"id": "S2-3", "ref": "별표1 2.다", "text": "교통시설의 설치계획 및 교통관련 계획", "check": "key", "key": "survey.facility_plans"},
+    {"id": "S3-1", "ref": "별표1 3.가", "text": "사업 미시행 시 수요예측", "check": "key", "key": "demand.without_project"},
+    {"id": "S3-2", "ref": "별표1 3.나", "text": "사업시행 시 수요예측", "check": "key", "key": "demand.with_project"},
+    {"id": "S3-3", "ref": "별표1 3.다", "text": "주차수요예측", "check": "key", "key": "demand.parking"},
+    {"id": "S4-1", "ref": "별표1 4 / 제17조③1", "text": "문제점·개선방안: 주변가로 및 교차로 (현황 및 문제점 / 개선방안)", "check": "key", "key": "improve.roads_intersections"},
+    {"id": "S4-2", "ref": "별표1 4 / 제17조③1", "text": "문제점·개선방안: 진·출입 동선", "check": "key", "key": "improve.access"},
+    {"id": "S4-3", "ref": "별표1 4 / 제17조③1", "text": "문제점·개선방안: 대중교통, 자전거 및 보행", "check": "key", "key": "improve.transit_walk_bike"},
+    {"id": "S4-4", "ref": "별표1 4 / 제17조③1", "text": "문제점·개선방안: 주차", "check": "key", "key": "improve.parking"},
+    {"id": "S4-5", "ref": "별표1 4 / 제17조③1", "text": "문제점·개선방안: 교통안전 및 기타", "check": "key", "key": "improve.safety"},
+    {"id": "S5-1", "ref": "별표1 5.가", "text": "교통개선대책안의 시행계획: 사업시행주체 및 시행시기", "check": "key", "key": "plan.actors_timing"},
+    {"id": "S5-2", "ref": "별표1 5.나 / 제21조", "text": "공사 중 교통처리대책 (진·출입구와 주변지역 영향 최소화)", "check": "key", "key": "plan.construction"},
+    {"id": "S6-1", "ref": "별표1 6.가 / 제22조①", "text": "참고자료: 교통량 조사자료(교차로·가로 구분, 조사시기·방법·규모·결과)", "check": "key", "key": "appendix.traffic_counts"},
+    {"id": "S6-2", "ref": "별표1 6.나 / 제22조②", "text": "참고자료: 원단위 조사자료(원단위, 수단분담률, 첨두율, 보정계수, 평균 승차인원, 시간대별 유출입분포)", "check": "key", "key": "appendix.unit_rates"},
+    {"id": "S6-3", "ref": "제22조⑤", "text": "별지 1호 서식 교통영향평가 분석표 수록", "check": "key", "key": "appendix.analysis_table"},
+
+    {"id": "R-SC-1", "ref": "제5조①1", "text": "시간적 범위: 건축물 준공 후 1년, 3년을 목표연도로 설정", "check": "key", "key": "scope.target_years"},
+    {"id": "R-SC-2", "ref": "제5조②1", "text": "공간적 범위: 주된 출입구 기준 가장 가까운 교차로 — 대상범위 4배 미만 반경 1.0km 4개↑, 4~8배 1.5km 8개↑, 8배↑ 2.0km 12개↑ (교통권역은 1/2 범위 내 완화 가능, ③)", "check": "key", "key": "scope.spatial"},
+    {"id": "R-SC-3", "ref": "제6조", "text": "공간적 범위가 각 방향에 고르게 분포 (아니면 사유 제시)", "check": "manual"},
+
+    {"id": "R-SV-1", "ref": "제7조①1", "text": "교통시설 설치현황을 가로망도에 제시, 교통안전시설 종류·위치 도면 표시, 현장사진 첨부", "check": "manual"},
+    {"id": "R-SV-2", "ref": "제7조①2", "text": "교차로 차로운영·기하구조·신호주기·현시 조사", "check": "key", "key": "survey.signal_geometry"},
+    {"id": "R-SV-3", "ref": "제7조①3", "text": "유사 건축물 주차시설 개요·평균 주차시간·규모 조사", "check": "key", "key": "survey.similar_parking"},
+    {"id": "R-SV-4", "ref": "제7조①5", "text": "차종별 교통량 3개 이상(승용차 / 버스 / 화물) 구분", "check": "key", "key": "survey.vehicle_classes"},
+    {"id": "R-SV-5", "ref": "제7조①6", "text": "분석대상 교차로 평균지체도 및 가로구간 평균통행속도", "check": "key", "key": "survey.delay_speed"},
+    {"id": "R-SV-6", "ref": "제7조①8", "text": "대중교통 운영현황: 노선번호·기종점·운행간격·인접 정류소 첨두 승하차·대기행렬·버스전용차로", "check": "key", "key": "survey.transit"},
+    {"id": "R-SV-7", "ref": "제7조①9", "text": "교통사고 및 사고다발지점 현황", "check": "key", "key": "survey.accidents"},
+    {"id": "R-SV-8", "ref": "제7조①10", "text": "보행자·자전거 통행량 이용실태와 문제점", "check": "key", "key": "survey.ped_bike"},
+    {"id": "R-SV-9", "ref": "제7조③1", "text": "교통량 조사: 공동주택은 주말 제외 1일 이상, 오전·오후 첨두시 각 1시간 이상, 평일/토/일 구분 제시", "check": "key", "key": "survey.count_days"},
+    {"id": "R-SV-10", "ref": "제7조①(단서)", "text": "인용한 기존 조사자료는 보고서 작성완료일 기준 3년 이내, 분석대상 교차로 동일", "check": "manual"},
+    {"id": "R-SV-11", "ref": "제7조④", "text": "건축물: 사업지구가 속한 블록 내 이면도로·교차로 용량·서비스수준 분석, 신호화계획·최적 신호시간 계획 제시", "check": "key", "key": "survey.block_analysis"},
+
+    {"id": "R-DM-1", "ref": "제11조①", "text": "교통수요예측을 사업 미시행 시와 시행 시로 구분하고 교통지표를 목표연도에 맞게 보정", "check": "key", "key": "demand.indicator_adjust"},
+    {"id": "R-DM-2", "ref": "제11조③", "text": "건축물은 교통유발 원단위를 활용한 직접수요예측기법 적용 (다른 방법은 사유 제시)", "check": "key", "key": "demand.method"},
+    {"id": "R-DM-3", "ref": "제11조④", "text": "서비스수준을 사업 미시행 / 사업시행 / 교통개선대책 이행 시 3단계로 구분 분석", "check": "key", "key": "demand.los_three_stage"},
+
+    {"id": "R-UR-1", "ref": "제12조(본문)", "text": "원단위 근거: 기존 건축물 실측 1개↑ + 관련자료 3개↑, 또는 실측 3개↑ 비교·분석", "check": "key", "key": "unitrate.basis"},
+    {"id": "R-UR-2", "ref": "제12조4호", "text": "원단위에 첨두시 구분 포함", "check": "key", "key": "unitrate.peak_split"},
+    {"id": "R-UR-3", "ref": "제12조7호", "text": "인용 원단위는 조사시점 기준 3년 이내, 출처와 교통여건 제시", "check": "key", "key": "unitrate.source_recency"},
+    {"id": "R-UR-4", "ref": "제12조8호", "text": "원단위를 보고서 기준년도로 보정하고 보정근거 제시", "check": "key", "key": "unitrate.year_adjust"},
+    {"id": "R-MS-1", "ref": "제13조", "text": "교통수단 분담률: 이용/상근인구 구분, 사람·화물 구분, 버스·지하철 분담률 설정 근거(도보권 여부)", "check": "key", "key": "modeshare.basis"},
+    {"id": "R-PK-1", "ref": "제14조", "text": "첨두일·첨두시를 건축물 교통유발량 + 사전조사 교통량 합산으로 결정", "check": "key", "key": "demand.peak_decision"},
+    {"id": "R-PK-2", "ref": "제10조②", "text": "평균 재차인원: 현황조사 1개↑ + 관련자료 3개↑ 가중평균 (미산출 시 평균 승차정원의 50%)", "check": "key", "key": "unitrate.occupancy"},
+    {"id": "R-PA-1", "ref": "제15조①~③", "text": "주차수요: 원단위법, 유사 건축물 현지조사 + 관련자료 3개↑, 도시교통정비기본계획 등과 비교 가능하게 제시", "check": "key", "key": "parking.method"},
+
+    {"id": "R-LS-1", "ref": "제16조(본문)", "text": "서비스수준·승용차환산계수는 최근년도 도로용량편람 기준 (미적용 시 사유와 객관적 자료 제시)", "check": "key", "key": "los.handbook_basis"},
+    {"id": "R-LS-2", "ref": "제16조1호", "text": "가로구간 분석: 진행방향·차로수·차로폭·구간거리·최대허용용량·첨두시 교통량·V/C·평균통행속도·서비스수준", "check": "key", "key": "los.links"},
+    {"id": "R-LS-3", "ref": "제16조2호", "text": "신호·비신호 교차로 분석: 교차로명·진행방향별 교통량, 신호주기, 평균 지체도", "check": "key", "key": "los.intersections"},
+    {"id": "R-LS-4", "ref": "제16조3호", "text": "대중교통 분석(혼잡도·환승체계·노선수·운행간격·평균 승하차·버스베이·대기공간)", "check": "key", "key": "los.transit"},
+    {"id": "R-LS-5", "ref": "제16조5호", "text": "보행분석(보행교통유율·점유공간·밀도·보행속도·서비스수준)", "check": "key", "key": "los.pedestrian"},
+    {"id": "R-LS-6", "ref": "제16조6호", "text": "자전거통행 분석(도로폭·상충횟수·방향별 교통량·지체도 반영 서비스수준)", "check": "key", "key": "los.bicycle"},
+
+    {"id": "R-PB-1", "ref": "제17조①~②", "text": "문제점은 수요예측·상위계획·법령·서비스수준 결과에서 인과관계를 갖고 도출 (문제점 회피·간과 금지)", "check": "manual"},
+    {"id": "R-PB-2", "ref": "제17조④", "text": "개선대책이 교통안전진단지침, 이동편의시설 설치기준, 대중교통 대규모개발 교통시설 기준, 자전거 이용시설 기준에 적합", "check": "manual"},
+    {"id": "R-EF-1", "ref": "제19조②", "text": "개선대책별 이행 전·후 서비스수준 변화를 별표 7 지표로 계량 비교", "check": "key", "key": "effect.quantitative"},
+    {"id": "R-EF-2", "ref": "제19조③", "text": "비계량 효과분석표(별표 8) 작성", "check": "key", "key": "effect.qualitative"},
+    {"id": "R-OX-1", "ref": "제20조①", "text": "사업지구 외부 교통개선대책 시행계획: 규모·시행시기·개선비용·시행주체·비용부담주체", "check": "key", "key": "plan.external_measures"},
+    {"id": "R-CI-1", "ref": "제22조③", "text": "인용자료는 자료명·출판년도·저자·인용내용·발생시기·쪽수 기재", "check": "key", "key": "appendix.citations"}
+  ]
+}

@@ -30,7 +30,9 @@
 
 ## 4. 확보한 핵심 근거자료 (전문가 자문 없이 시작하기 위한 1차 소스)
 
-- 국토교통부 교통영향평가 지침(행정규칙) — https://www.law.go.kr/LSW/admRulInfoP.do?admRulSeq=66095
+- 국토교통부 **교통영향평가 지침(현행, 2021.4.13 시행, 고시 제2021-317호)** — https://www.law.go.kr/LSW//admRulInfoP.do?admRulSeq=2100000200035&chrClsCd=010201
+  - ⚠️ 기존에 적어둔 admRulSeq=66095는 2008년판 연혁본(구 환경·교통·재해등에관한영향평가법 기준)이라 사용하지 말 것
+  - 별표는 이미지/HWP 뷰어로만 제공됨 (텍스트 추출 불가). 체크리스트 v0.1: data/reflection_checklist.json
   - [별지 1] 교통영향평가 분석표 — https://www.law.go.kr/LSW/flDownload.do?flSeq=100166899
   - [별표 1] 대상사업 범위 및 제출·심의 시기 — https://law.go.kr/flDownload.do?flSeq=41096647
 - 서울특별시 교통영향평가 수립지침(PDF) — https://opengov.seoul.go.kr/og/com/download.php?uri=/files/dcdata/100001/20170208/F0000054856278.pdf
