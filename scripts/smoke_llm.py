@@ -15,8 +15,23 @@ from app.schemas import Approach, ProjectInput  # noqa: E402
 from app.state import IntersectionInput, ReportState  # noqa: E402
 
 
+def env_info() -> str:
+    """오류 진단용: 실행 중인 파이썬과 관련 패키지 버전(키는 출력하지 않음)."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    vers = []
+    for pkg in ("openai", "anthropic", "httpx", "httpcore", "h11", "anyio", "pydantic"):
+        try:
+            vers.append(f"{pkg} {version(pkg)}")
+        except PackageNotFoundError:
+            vers.append(f"{pkg} 미설치")
+    return f"python: {sys.executable}
+패키지: " + ", ".join(vers)
+
+
 async def main() -> int:
     s = get_settings()
+    print(env_info())
     print(f"제공자: {s.llm_provider} | 모델: {s.model} | 키 설정됨: {bool(s.api_key)} | mock: {s.llm_mock_mode}")
     if s.llm_mock_mode:
         print(f"{s.llm_provider} 키가 비어 있습니다. .env의 LLM_PROVIDER와 해당 키를 확인하세요 (프로젝트 루트에서 실행해야 .env를 읽습니다).")
@@ -26,7 +41,12 @@ async def main() -> int:
     try:
         reply = await llm.complete("한 문장으로만 답하세요.", "연결 테스트입니다. '확인'이라고 답하세요.")
     except Exception as e:  # 인증·모델명·네트워크 오류를 구분해 보여준다
+        import traceback
+
         print(f"호출 실패: {type(e).__name__}: {e}")
+        print("--- 오류 위치(마지막 6줄) ---")
+        print("
+".join(traceback.format_exc().splitlines()[-6:]))
         return 2
     print("짧은 호출 OK:", reply[:80])
 
