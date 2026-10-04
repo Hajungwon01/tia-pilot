@@ -25,8 +25,7 @@ def env_info() -> str:
             vers.append(f"{pkg} {version(pkg)}")
         except PackageNotFoundError:
             vers.append(f"{pkg} 미설치")
-    return f"python: {sys.executable}
-패키지: " + ", ".join(vers)
+    return f"python: {sys.executable}\n패키지: " + ", ".join(vers)
 
 
 async def main() -> int:
@@ -45,8 +44,7 @@ async def main() -> int:
 
         print(f"호출 실패: {type(e).__name__}: {e}")
         print("--- 오류 위치(마지막 6줄) ---")
-        print("
-".join(traceback.format_exc().splitlines()[-6:]))
+        print("\n".join(traceback.format_exc().splitlines()[-6:]))
         return 2
     print("짧은 호출 OK:", reply[:80])
 
