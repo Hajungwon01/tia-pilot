@@ -47,6 +47,7 @@ async def main() -> int:
         print("\n".join(traceback.format_exc().splitlines()[-6:]))
         return 2
     print("짧은 호출 OK:", reply[:80])
+    print("파이프라인 실행 중... (LLM 호출 5회 이상)")
 
     state = ReportState(
         project=ProjectInput(name="점검용 단지", address="서울 OO동", households=1500, gross_floor_area_m2=180_000),
@@ -57,9 +58,17 @@ async def main() -> int:
     )
     out = await TIAPipeline(llm).run(state)
     r = out.reflection
-    print(f"파이프라인 OK | 통과 {r['passed']}/{r['auto_total']} | AI 섹션 미검증(mock) {len(r['unverified_mock'])} | 재시도 {out.iterations}")
     print("--- improve.roads_intersections 샘플 ---")
-    print(out.sections.get("improve.roads_intersections", "(없음)")[:600])
+    print(out.sections.get("improve.roads_intersections", "(없음)")[:1500])
+    print()
+    print("=== 요약 (이 블록만 붙여 주세요) ===")
+    print(f"체크리스트 통과 {r['passed']}/{r['auto_total']} | 재시도 {out.iterations}회 | "
+          f"미검증(mock) {len(r['unverified_mock'])}개")
+    print(f"AI 섹션 5개 중 환각 점검 불일치(⚠) {len(r['flagged'])}개")
+    for k, issues in r["flagged"].items():
+        print(f"  ⚠ {k}: {'; '.join(issues)}")
+    ai_missing = [k for k in r["missing"] if k.startswith("improve.")]
+    print(f"AI 섹션 누락 {len(ai_missing)}개 {ai_missing if ai_missing else ''}")
     return 0
 
 
