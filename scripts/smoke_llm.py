@@ -17,9 +17,9 @@ from app.state import IntersectionInput, ReportState  # noqa: E402
 
 async def main() -> int:
     s = get_settings()
-    print(f"모델: {s.llm_model} | 키 설정됨: {bool(s.anthropic_api_key)} | mock: {s.llm_mock_mode}")
+    print(f"제공자: {s.llm_provider} | 모델: {s.model} | 키 설정됨: {bool(s.api_key)} | mock: {s.llm_mock_mode}")
     if s.llm_mock_mode:
-        print("ANTHROPIC_API_KEY가 비어 있습니다. .env를 확인하세요 (프로젝트 루트에서 실행해야 .env를 읽습니다).")
+        print(f"{s.llm_provider} 키가 비어 있습니다. .env의 LLM_PROVIDER와 해당 키를 확인하세요 (프로젝트 루트에서 실행해야 .env를 읽습니다).")
         return 1
 
     llm = LLMClient()
