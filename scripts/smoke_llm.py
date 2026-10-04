@@ -53,8 +53,9 @@ async def main() -> int:
         project=ProjectInput(name="점검용 단지", address="서울 OO동", households=1500, gross_floor_area_m2=180_000),
         intersections=[IntersectionInput(
             name="A교차로", cycle=120,
-            approaches=[Approach(name="N", volume=400, saturation_flow=1800, green_time=40),
-                        Approach(name="E", volume=500, saturation_flow=1800, green_time=40)])],
+            approaches=[Approach(name="N", volume=400, saturation_flow=1800, green_time=40, project_share=0.4),
+                        Approach(name="E", volume=500, saturation_flow=1800, green_time=40, project_share=0.1)])],
+        background_growth_rate=0.02,
     )
     out = await TIAPipeline(llm).run(state)
     r = out.reflection
@@ -64,6 +65,7 @@ async def main() -> int:
     print("=== 요약 (이 블록만 붙여 주세요) ===")
     print(f"체크리스트 통과 {r['passed']}/{r['auto_total']} | 재시도 {out.iterations}회 | "
           f"미검증(mock) {len(r['unverified_mock'])}개")
+    print("3단계 분석:", out.sections.get("demand.los_three_stage", "(없음)").replace("\n", " / "))
     print(f"AI 섹션 5개 중 환각 점검 불일치(⚠) {len(r['flagged'])}개")
     for k, issues in r["flagged"].items():
         print(f"  ⚠ {k}: {'; '.join(issues)}")

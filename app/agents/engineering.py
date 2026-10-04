@@ -26,6 +26,8 @@ class EngineeringAgent(BaseAgent):
             out.append("")
         if state.artifacts.get("los_table"):
             out += ["## 부록: LOS 요약표", state.artifacts["los_table"], ""]
+        if state.artifacts.get("los_stage_table"):
+            out += ["## 부록: 3단계 LOS 비교표 (지침 제11조④)", state.artifacts["los_stage_table"], ""]
         if state.warnings:
             out += ["## 작성 시 주의", *[f"- {w}" for w in state.warnings]]
         state.document = "\n".join(out)

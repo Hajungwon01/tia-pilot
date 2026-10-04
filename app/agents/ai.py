@@ -22,7 +22,9 @@ SYSTEM = (
     "v/c가 1 미만이면 '용량 이내이나 지체가 발생'처럼 사실대로 쓰세요.\n"
     "4. 지침 조문이나 법령을 지어내지 마세요.\n"
     "5. [유의사항]에 '임시' 표시가 있으면 해당 수치가 잠정값임을 문장에 밝히세요.\n"
-    "6. 초안이며 전문가 검토가 필요함을 전제로 쓰세요."
+    "6. [3단계 분석]이 있으면 사업 미시행→시행→개선 후 변화를 해당 수치로 비교해 서술하세요. "
+    "악화·개선 여부는 수치 비교로만 판단하고, 개선방안의 근거로는 [3단계 분석]의 '개선 후' 계산만 인용하세요.\n"
+    "7. 초안이며 전문가 검토가 필요함을 전제로 쓰세요."
 )
 
 
@@ -42,6 +44,16 @@ class AIAgent(BaseAgent):
             for r in v["results"]:
                 lines.append(f"  - {r['approach']} 접근로: 용량 {r['capacity']:.0f}대/시, v/c {r['vc_ratio']:.2f}, "
                              f"지체 {r['delay']:.1f}초/대, LOS {r['los']}")
+        for n, years in state.stages.items():
+            for y, st in years.items():
+                lines.append(f"[3단계 분석] {n} 준공 후 {y}년:")
+                for label, k in (("사업 미시행", "without"), ("사업 시행", "with"), ("개선 후(녹색시간 재배분)", "improved")):
+                    d = st[k]
+                    lines.append(f"  - {label}: 평균지체 {d['avg_delay']:.1f}초/대, LOS {d['grade']}, 최대 v/c {d['max_vc']:.2f}")
+                gi = ", ".join(f"{a} {g:.1f}초" for a, g in st["improved"]["greens"].items())
+                gw = ", ".join(f"{a} {g:.1f}초" for a, g in st["with"]["greens"].items())
+                lines.append(f"  - 녹색시간 변경: 현행 {gw} → 개선 {gi}")
+                lines.append(f"  - 녹색시간 재배분에 의한 지체 감소: {st['delay_reduction']:.1f}초/대")
         if not state.los:
             lines.append("교차로 실측 입력 없음")
         if state.warnings:

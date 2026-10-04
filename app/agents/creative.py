@@ -14,4 +14,11 @@ class CreativeAgent(BaseAgent):
             for n, v in state.los.items():
                 lines.append(f"| {n} | {v['avg_delay']:.1f} | {v['grade']} |")
             state.artifacts["los_table"] = "\n".join(lines)
+        if state.stages:
+            lines = ["| 교차로 | 목표년도 | 미시행 지체(LOS) | 시행 지체(LOS) | 개선 후 지체(LOS) |", "|---|---|---|---|---|"]
+            for n, years in state.stages.items():
+                for y, st in years.items():
+                    cell = lambda k: f"{st[k]['avg_delay']:.1f} ({st[k]['grade']})"
+                    lines.append(f"| {n} | 준공 후 {y}년 | {cell('without')} | {cell('with')} | {cell('improved')} |")
+            state.artifacts["los_stage_table"] = "\n".join(lines)
         return state

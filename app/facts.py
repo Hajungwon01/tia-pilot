@@ -59,6 +59,26 @@ def build_facts(state: ReportState) -> FactTable:
         f.add(ix.cycle)
         for a in ix.approaches:
             f.add(a.volume, a.saturation_flow, a.green_time)
+    if state.background_growth_rate is not None:
+        f.add(state.background_growth_rate * 100)
+    for years in state.stages.values():
+        for y, st in years.items():
+            f.add(y, st.get("delay_reduction"))
+            for stage in ("without", "with", "improved"):
+                d = st[stage]
+                f.add(d["avg_delay"], d["max_vc"])
+                f.grades.add(d["grade"])
+                vcs.append(d["max_vc"])
+                for g in d["greens"].values():
+                    f.add(g)
+                for v in d["volumes"].values():
+                    f.add(v)
+                for r in d["results"]:
+                    f.add(r["capacity"], r["vc_ratio"], r["vc_ratio"] * 100, r["delay"])
+                    f.grades.add(r["los"])
+    for ix in state.intersections:
+        for a in ix.approaches:
+            f.add(a.project_share * 100)
     f.max_vc = max(vcs) if vcs else None
     return f
 

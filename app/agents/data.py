@@ -1,4 +1,5 @@
 from app.los import analyze_intersection
+from app.stages import MEANINGFUL_REDUCTION, analyze_stages, grade_rank
 from app.state import ReportState
 from app.trip_generation import estimate_trips
 
@@ -43,8 +44,46 @@ class DataAgent(BaseAgent):
                 self.name,
             )
             state.warn("LOS 등급 기준이 HCM 임시값(도로용량편람 미적용)")
+            self._run_stages(state)
         else:
             for key in ("survey.signal_geometry", "survey.count_days", "los.intersections"):
                 if key not in state.needs_input:
                     state.needs_input.append(key)
         return state
+
+    def _run_stages(self, state: ReportState) -> None:
+        """사업 미시행 / 시행 / 개선 3단계 분석 (지침 제11조④)."""
+        years = (state.scope or {}).get("target_years", [1, 3])
+        g = state.background_growth_rate
+        if g is None:
+            g = 0.0
+            state.warn("배경교통량 증가율 미입력: 0%로 가정해 미시행 교통량을 현황과 동일하게 둠")
+            if "demand.background_growth_rate" not in state.needs_input:
+                state.needs_input.append("demand.background_growth_rate")
+
+        without_lines, stage_lines = [], []
+        for ix in state.intersections:
+            peak_total = getattr(state.trips, f"{ix.peak}_peak").total
+            if sum(a.project_share for a in ix.approaches) == 0:
+                state.warn(f"{ix.name}: 방면별 사업 교통량 배분율 미입력으로 시행 시 교통량이 미시행과 같음")
+                if "demand.project_share" not in state.needs_input:
+                    state.needs_input.append("demand.project_share")
+            res = analyze_stages(ix.approaches, ix.cycle, years, g, peak_total)
+            state.stages[ix.name] = res
+            for y, st in res.items():
+                w, p, im = st["without"], st["with"], st["improved"]
+                without_lines.append(
+                    f"{ix.name} 준공 후 {y}년({ix.peak.upper()} 첨두, 연 증가율 {g * 100:.1f}%): "
+                    f"미시행 평균지체 {w['avg_delay']:.1f}초/대, LOS {w['grade']}")
+                trend = "악화" if grade_rank(p["grade"]) > grade_rank(w["grade"]) else (
+                    "동일" if p["grade"] == w["grade"] else "개선")
+                red = st["delay_reduction"]
+                eff = (f"{red:.1f}초 감소, 효과 있음" if red >= MEANINGFUL_REDUCTION
+                       else f"{max(red, 0):.1f}초 감소, 효과 미미")
+                stage_lines.append(
+                    f"{ix.name} 준공 후 {y}년: 미시행 {w['avg_delay']:.1f}초/대(LOS {w['grade']}) → "
+                    f"시행 {p['avg_delay']:.1f}초/대(LOS {p['grade']}, 등급 {trend}) → "
+                    f"개선 후 {im['avg_delay']:.1f}초/대(LOS {im['grade']}, 지체 {eff})")
+        state.put("demand.without_project", "\n".join(without_lines), self.name)
+        state.put("demand.los_three_stage", "\n".join(stage_lines), self.name)
+        state.warn("개선 후 분석은 신호주기 고정·녹색시간 재배분(접근로별 별도 현시 가정)만 반영한 간이 계산")

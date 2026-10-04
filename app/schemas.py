@@ -42,6 +42,7 @@ class Approach(BaseModel):
     volume: float = Field(ge=0)  # 교통량 (대/시)
     saturation_flow: float = Field(gt=0)  # 포화교통류율 (대/시)
     green_time: float = Field(gt=0)  # 유효녹색시간 (초)
+    project_share: float = Field(default=0.0, ge=0, le=1)  # 이 접근로에 실리는 사업 유발 첨두교통량 비율(방면별 배분율)
 
 
 class IntersectionResult(BaseModel):
