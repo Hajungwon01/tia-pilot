@@ -54,7 +54,7 @@ def test_without_field_inputs_asks_user():
 def test_provisional_scope_warning():
     st = asyncio.run(TIAPipeline().run(make_state()))
     assert st.scope["spatial_provisional"] is True
-    assert any("별표 1" in w for w in st.warnings)
+    assert any("연면적 미입력" in w for w in st.warnings)
 
 
 def test_reflection_retry_loop_fills_ai_sections(monkeypatch):

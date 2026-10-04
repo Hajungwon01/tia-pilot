@@ -14,6 +14,8 @@ class ProjectInput(BaseModel):
     address: str
     land_use: LandUse = LandUse.APARTMENT
     households: int = Field(gt=0)
+    gross_floor_area_m2: float | None = Field(default=None, gt=0)  # 건축 연면적(㎡), 대상 판정 기준
+    floors: int | None = Field(default=None, gt=0)  # 최고 층수
 
 
 class PeakTrips(BaseModel):
