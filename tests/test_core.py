@@ -34,10 +34,10 @@ def test_default_rates_flagged_provisional():
 
 
 def test_los_grade_boundaries():
-    assert los_from_delay(10) == "A"
-    assert los_from_delay(10.1) == "B"
-    assert los_from_delay(80) == "E"
-    assert los_from_delay(80.1) == "F"
+    # 도로용량편람(2013) 신호교차로: A≤15, B≤30, C≤50, D≤70, E≤100 (초/대)
+    for delay, grade in [(15, "A"), (15.1, "B"), (30, "B"), (30.1, "C"), (50, "C"), (50.1, "D"),
+                         (70, "D"), (70.1, "E"), (100, "E"), (100.1, "F")]:
+        assert los_from_delay(delay) == grade, (delay, grade)
 
 
 def test_low_volume_is_good_los():

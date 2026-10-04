@@ -43,7 +43,7 @@ class DataAgent(BaseAgent):
                 "\n".join(f"{n}: 평균지체 {v['avg_delay']:.1f}초/대, LOS {v['grade']}" for n, v in state.los.items()),
                 self.name,
             )
-            state.warn("LOS 등급 기준이 HCM 임시값(도로용량편람 미적용)")
+            state.warn("LOS 등급 기준은 도로용량편람(2013) 값을 2차 출처로 확인한 것으로 원문과 대조하지 못했고, 지체식은 간이식(진행보정·초기대기지체 미반영)")
             self._run_stages(state)
         else:
             for key in ("survey.signal_geometry", "survey.count_days", "los.intersections"):
