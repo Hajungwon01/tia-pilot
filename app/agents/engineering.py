@@ -1,3 +1,4 @@
+from app.facts import review_sections
 from app.reflection import load_checklist
 from app.state import ReportState
 
@@ -12,6 +13,7 @@ class EngineeringAgent(BaseAgent):
     name = "engineering"
 
     async def run(self, state: ReportState) -> ReportState:
+        flagged = review_sections(state)
         out = [f"# 교통영향평가서 초안 — {state.project.name}", DISCLAIMER, ""]
         for item in load_checklist()["items"]:
             if item["check"] != "key":
@@ -19,6 +21,8 @@ class EngineeringAgent(BaseAgent):
             body = state.sections.get(item["key"])
             out.append(f"## [{item['id']}] {item['text']}")
             out.append(body if body else "[미작성] 입력 또는 작성 필요")
+            if item["key"] in flagged:
+                out.append("> ⚠ 검토 필요(계산 결과와 불일치 가능): " + "; ".join(flagged[item["key"]]))
             out.append("")
         if state.artifacts.get("los_table"):
             out += ["## 부록: LOS 요약표", state.artifacts["los_table"], ""]

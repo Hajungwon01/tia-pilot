@@ -30,14 +30,20 @@ class TIAPipeline:
         state = await self.engineering.run(state)
         state = await self.reflection.run(state)
 
-        # Reflection이 AI 소유 섹션 누락을 지적하면 해당 섹션만 재작성 (LLM이 실연결일 때만 의미 있음)
+        # Reflection이 지적한 AI 섹션(누락 또는 계산 결과와 불일치)만 사유와 함께 재작성
+        # (LLM이 실연결일 때만 의미 있음)
         retries = get_settings().max_reflection_retries
         while not self.llm.mock_mode and state.iterations < retries:
-            redo = [k for k in state.reflection["missing"] if k in AI_SECTIONS]
-            if not redo:
+            r = state.reflection
+            feedback = {k: "[재작성 요청] 이전 초안에서 누락되었습니다. 빠짐없이 작성하세요."
+                        for k in r["missing"] if k in AI_SECTIONS}
+            for k, issues in r["flagged"].items():
+                feedback[k] = ("[재작성 요청] 이전 초안의 다음 문제를 고치세요: " + "; ".join(issues)
+                               + ". [분석 결과]에 없는 수치·원인은 쓰지 마세요.")
+            if not feedback:
                 break
             state.iterations += 1
-            await self.ai.run(state, only=redo, feedback="이전 초안에서 누락·미흡으로 지적됨. 해당 항목을 빠짐없이 작성하세요.")
+            await self.ai.run(state, only=list(feedback), feedback=feedback)
             state = await self.engineering.run(state)
             state = await self.reflection.run(state)
         return state
