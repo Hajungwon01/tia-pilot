@@ -1,4 +1,4 @@
-# 백로그 초안 (Jira 이전용) — 교통영향평가 초안 자동화
+# 백로그 — 교통영향평가 초안 자동화 (GitHub Projects와 동기: 저장소 tia-pilot 이슈/보드 TIA Pilot)
 
 - 작성일: 2026-10-04 / 목표: 2026-11-30 배포
 - 형식: Epic(에이전트/영역) → Story. `상태`는 2026-10-04 기준. 우선순위 P0(마감 필수) / P1 / P2(버퍼 시 진행)
@@ -120,7 +120,3 @@
 `BLK-2` → TIA-11 → TIA-12/13 → TIA-14 → TIA-24 → TIA-25 → TIA-41 → TIA-74 → TIA-84 → TIA-90
 
 BLK-1·3(원단위·편람)이 안 풀리면 TIA-22·23만 임시값 상태로 두고 나머지는 진행. 배포 시 "임시 원단위 사용" 경고를 결과 화면에 표시한다.
-
-## Jira 이전 시 매핑 제안
-- Epic = EP-* 9개, Story = TIA-*, 블로커 = "Blocked" 라벨 또는 별도 Task
-- 라벨: `agent-planning|data|eng|creative|ai|reflection`, 우선순위는 P0→Highest, P1→Medium, P2→Low
