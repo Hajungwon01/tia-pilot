@@ -8,7 +8,7 @@
 from app.los import analyze_intersection
 from app.schemas import Approach
 
-GRADE_ORDER = "ABCDEF"
+GRADE_ORDER = ["A", "B", "C", "D", "E", "F", "FF", "FFF"]
 MIN_GREEN = 7.0  # 초. 임시 최소 녹색시간(보행·안전 기준 확인 필요)
 MEANINGFUL_REDUCTION = 1.0  # 초/대. 이보다 작은 지체 감소는 "효과 미미"로 표기(임의 기준)
 

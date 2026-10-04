@@ -22,7 +22,7 @@ def make_state(volume_e=500):
     return st
 
 
-GOOD = "AM 첨두 유입 87대/시, 유출 204대/시로 추정됩니다. A교차로 평균 지체 45.4초/대, LOS D입니다. 신호 조정을 검토해야 합니다."
+GOOD = "AM 첨두 유입 87대/시, 유출 204대/시로 추정됩니다. A교차로 평균 지체 45.4초/대, LOS C입니다. 신호 조정을 검토해야 합니다."
 
 
 def test_legit_numbers_pass():
@@ -80,7 +80,7 @@ class BadThenGoodLLM:
     async def complete(self, system, user):
         self.prompts.append(user)
         if "[재작성 요청]" in user:
-            return "A교차로 평균 지체 45.4초/대, LOS D입니다. 개선방안은 현장 조사 후 검토가 필요합니다."
+            return "A교차로 평균 지체 45.4초/대, LOS C입니다. 개선방안은 현장 조사 후 검토가 필요합니다."
         return "교통량이 용량을 초과하여 녹색시간 10초 연장이 필요합니다."
 
 
@@ -128,3 +128,15 @@ def test_unit_lookalike_words_are_not_numbers():
     f = build_facts(make_state())
     # '10초과', '3분석', '2개선' 같은 낱말은 수치로 보지 않는다
     assert verify_text("기준을 10초과하는 경우, 3분석 결과, 2개선안", f) == []
+
+
+def test_los_ff_and_fff_are_parsed_as_whole_grades():
+    f = build_facts(make_state())
+    issues = verify_text("교차로는 LOS FF 수준입니다. 일부 접근로는 LOS FFF입니다.", f)
+    assert any("LOS FF'" in i for i in issues) and any("LOS FFF'" in i for i in issues)
+
+
+def test_los_grade_followed_directly_by_korean_particle_is_checked():
+    f = build_facts(make_state())  # 계산된 등급: C만
+    assert any("LOS F" in i for i in verify_text("교차로는 LOS F입니다.", f))
+    assert verify_text("교차로는 LOS C입니다.", f) == []

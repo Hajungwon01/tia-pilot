@@ -15,7 +15,8 @@ UNIT_NUM = re.compile(
     r"(\d[\d,]*(?:\.\d+)?)\s*(대/시|대/일|초/대|초|%|㎡|km|세대|개소|개|년|분|m)"
     r"(?!과|석|류|포|리|산|선|발|략|별|인|요|월|도|[A-Za-z])"
 )
-LOS_MENTION = re.compile(r"LOS\s*([A-F])\b")
+# \b는 한글을 단어 문자로 보므로 "LOS F입니다"를 놓친다 → 뒤에 영문자만 아니면 허용
+LOS_MENTION = re.compile(r"LOS\s*(FFF|FF|[A-F])(?![A-Za-z])")
 OVER_CAPACITY = re.compile(r"용량\s*(?:을\s*)?초과|통행능력\s*(?:을\s*)?초과|포화\s*(?:상태|되)|v/c[^.\n]{0,12}1\s*(?:을\s*)?(?:초과|넘)")
 
 

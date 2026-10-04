@@ -43,7 +43,7 @@ class DataAgent(BaseAgent):
                 "\n".join(f"{n}: 평균지체 {v['avg_delay']:.1f}초/대, LOS {v['grade']}" for n, v in state.los.items()),
                 self.name,
             )
-            state.warn("LOS 등급 기준은 도로용량편람(2013) 값을 2차 출처로 확인한 것으로 원문과 대조하지 못했고, 지체식은 간이식(진행보정·초기대기지체 미반영)")
+            state.warn("LOS는 도로용량편람(2013) 기준(<표 8-2>, d1·d2 식 원문 확인)으로 계산하되, 연동계수(PF=1.0)와 초기대기지체(d3=0)는 반영하지 않은 계획분석 가정")
             self._run_stages(state)
         else:
             for key in ("survey.signal_geometry", "survey.count_days", "los.intersections"):
