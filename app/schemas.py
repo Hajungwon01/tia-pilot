@@ -1,10 +1,18 @@
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
 class LandUse(str, Enum):
     APARTMENT = "apartment"
+
+
+class UseArea(BaseModel):
+    """복합용도 건축물의 공동주택 외 용도별 면적. use는 data/eligibility_thresholds.json seoul_uses의 key."""
+
+    use: str
+    area_m2: float = Field(gt=0)  # 해당 용도의 건축 연면적(㎡) 또는 부지면적(동·식물원 등 부지면적 기준 용도)
 
 
 class ProjectInput(BaseModel):
@@ -14,8 +22,22 @@ class ProjectInput(BaseModel):
     address: str
     land_use: LandUse = LandUse.APARTMENT
     households: int = Field(gt=0)
-    gross_floor_area_m2: float | None = Field(default=None, gt=0)  # 건축 연면적(㎡), 대상 판정 기준
+    # 신축·용도변경: 공동주택 건축 연면적(용도변경은 변경 후 면적). 증축은 아래 기존·증축 면적으로 판정한다.
+    gross_floor_area_m2: float | None = Field(default=None, gt=0)
     floors: int | None = Field(default=None, gt=0)  # 최고 층수
+
+    # 사업 유형과 복합용도·증축 (시행령 별표 1 2.나·비고 5)
+    project_kind: Literal["new", "expansion", "use_change"] = "new"
+    other_uses: list[UseArea] = Field(default_factory=list)  # 동일 건축물·부지의 공동주택 외 용도(복합용도)
+    existing_gfa_m2: float | None = Field(default=None, gt=0)  # 증축: 증축 전 준공 연면적
+    expansion_gfa_m2: float | None = Field(default=None, gt=0)  # 증축: 이번 증축 연면적
+    prior_expansion_gfa_m2: float = Field(default=0.0, ge=0)  # 증축: 이전에 이미 증축한 연면적 합계
+    existing_evaluated: bool | None = None  # 기존 건축물이 교통영향평가를 받고 준공됐는지
+
+    # 약식 평가 (지침 제23조)
+    in_evaluated_district: bool | None = None  # 교통영향평가를 실시한 사업지구 안에 건축하는지
+    years_since_completion: float | None = Field(default=None, ge=0)  # 기존 사업 심의·완료 후 경과 연수
+    request_abbreviated: bool = False  # 약식 적용 가능하면 적용(지침상 '할 수 있다'라 사용자가 선택)
 
 
 class PeakTrips(BaseModel):

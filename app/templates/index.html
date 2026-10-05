@@ -70,6 +70,27 @@
       <div><label for="floors">최고 층수</label><input id="floors" type="number" min="1" step="1"></div>
     </div>
 
+    <details id="kindBox" style="margin-top:10px">
+      <summary><b>사업 유형·복합용도·약식 평가</b> <span class="muted small">(신축 단일 아파트면 열지 않아도 됩니다)</span></summary>
+      <div class="grid" style="margin-top:8px">
+        <div><label for="kind">사업 유형</label>
+          <select id="kind"><option value="new">신축</option><option value="expansion">증축</option><option value="use_change">용도변경(변경 후 공동주택)</option></select></div>
+        <div class="expOnly"><label for="exGfa">기존 준공 연면적(㎡)</label><input id="exGfa" type="number" min="1" step="any"></div>
+        <div class="expOnly"><label for="exAdd">이번 증축 연면적(㎡)</label><input id="exAdd" type="number" min="1" step="any"></div>
+        <div class="expOnly"><label for="exPrior">이전 증축 합계(㎡)</label><input id="exPrior" type="number" min="0" step="any" value="0"></div>
+        <div class="chgOnly"><label for="exEval">기존 건축물이 교통영향평가를 받고 준공?</label>
+          <select id="exEval"><option value="">모름</option><option value="yes">예</option><option value="no">아니오</option></select></div>
+        <div><label for="inDistrict">평가를 실시한 사업지구 안에 건축?</label>
+          <select id="inDistrict"><option value="">모름</option><option value="yes">예</option><option value="no">아니오</option></select></div>
+        <div class="chgOnly"><label for="yrs">기존 사업 심의·완료 후 경과(년)</label><input id="yrs" type="number" min="0" step="any"></div>
+        <div style="align-self:end"><label><input type="checkbox" id="reqAbbr"> 약식 교통영향평가 적용 가능하면 적용</label></div>
+      </div>
+      <p class="muted small" id="kindHelp">증축은 위 ‘건축 연면적’ 대신 기존·증축 면적으로 판정합니다(별표 비고 5). 약식은 지침 제23조 요건을 충족할 때만 적용됩니다.</p>
+      <div style="margin-top:8px"><b>복합용도</b> <span class="muted small">— 같은 건축물·부지의 공동주택 외 용도(신축·용도변경에만 적용, Swa 판정). 유발교통량은 공동주택만 계산합니다.</span></div>
+      <div id="uses"></div>
+      <button type="button" class="btn small" id="addUse">+ 용도 추가</button>
+    </details>
+
     <h2 style="margin-top:18px">2. 분석 조건</h2>
     <div class="grid">
       <div><label for="growth">배경교통량 연 증가율(%)</label><input id="growth" type="number" step="any" min="-20" max="50" placeholder="예: 2"></div>
@@ -216,11 +237,43 @@ $("addIx").onclick = () => addIx();
 $("addStaff").onclick = addStaff;
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+const triState = (v) => (v === "yes" ? true : v === "no" ? false : null);
+
+// 사업 유형·복합용도
+const USES = {{ uses | tojson }};
+function addUse() {
+  const row = document.createElement("div"); row.className = "use-row";
+  row.style.cssText = "display:grid;gap:8px;grid-template-columns:2fr 1fr auto;align-items:end;margin:6px 0";
+  row.innerHTML = `<div><label>용도</label><select class="use-key">${USES.map(u => `<option value="${u.key}">${u.label}</option>`).join("")}</select></div>
+    <div><label>면적(㎡)</label><input class="use-area" type="number" min="1" step="any"></div>
+    <button type="button" class="btn small del-use">삭제</button>`;
+  $("uses").appendChild(row);
+  row.querySelector(".del-use").onclick = () => row.remove();
+}
+$("addUse").onclick = addUse;
+function syncKind() {
+  const k = $("kind").value;
+  document.querySelectorAll(".expOnly").forEach(e => e.style.display = k === "expansion" ? "" : "none");
+  document.querySelectorAll(".chgOnly").forEach(e => e.style.display = k === "new" ? "none" : "");
+  $("gfa").required = false;
+}
+$("kind").onchange = syncKind; syncKind();
 
 function buildPayload() {
+  const kind = $("kind").value;
   const p = {
     project: { name: $("name").value.trim(), address: $("address").value.trim(), land_use: "apartment",
-      households: num($("households").value), gross_floor_area_m2: num($("gfa").value), floors: num($("floors").value) },
+      households: num($("households").value), gross_floor_area_m2: num($("gfa").value), floors: num($("floors").value),
+      project_kind: kind,
+      other_uses: [...document.querySelectorAll(".use-row")].map(r => ({ use: r.querySelector(".use-key").value,
+        area_m2: num(r.querySelector(".use-area").value) })).filter(u => u.area_m2 !== null),
+      existing_gfa_m2: kind === "expansion" ? num($("exGfa").value) : null,
+      expansion_gfa_m2: kind === "expansion" ? num($("exAdd").value) : null,
+      prior_expansion_gfa_m2: kind === "expansion" ? (num($("exPrior").value) || 0) : 0,
+      existing_evaluated: kind === "new" ? null : triState($("exEval").value),
+      in_evaluated_district: triState($("inDistrict").value),
+      years_since_completion: kind === "new" ? null : num($("yrs").value),
+      request_abbreviated: $("reqAbbr").checked },
     background_growth_rate: num($("growth").value) === null ? null : num($("growth").value) / 100,
     intersections: [],
     agency: null,
@@ -438,7 +491,9 @@ function buildDetailed() {
     }));
     return stripNull({ name: dx.querySelector(".dx-name").value.trim(), cycle: num(dx.querySelector(".dx-cycle").value),
       phf: num(dx.querySelector(".dx-phf").value), peak: dx.querySelector(".dx-peak").value, phases, approaches });
-  }).filter(d => d.name || (d.approaches && d.approaches.length));
+  }).filter(d => d.name || d.cycle != null  // 이름·주기·녹색시간·접근로 이름/교통량 중 하나도 안 채운 기본 빈 카드는 보내지 않는다
+    || (d.phases || []).some(p => p.green != null)
+    || (d.approaches || []).some(a => a.name || a.v_left > 0 || a.v_through > 0 || a.v_right > 0));
 }
 
 function setMode() {

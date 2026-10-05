@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from app import auth
 from app.config import get_settings
 from app.docx_export import build_docx
+from app.eligibility import use_table
 from app.service import AnalyzeRequest, ServiceError, run_analysis, summarize
 from app.state import PARTICIPATION_ROLES
 from app.storage import Database, LlmRunLog, SqliteJobStore
@@ -133,6 +134,8 @@ async def index(request: Request):
         "disclaimer": DISCLAIMER, "llm_available": not s.llm_mock_mode, "llm_provider": s.llm_provider,
         "llm_model": s.model, "needs_code": bool(s.app_access_code), "roles": PARTICIPATION_ROLES,
         "auth_enabled": s.auth_enabled,
+        "uses": [{"key": k, "label": v["label"], "metric": v["metric"]}
+                 for k, v in use_table().items() if k != "apartment"],
     })
 
 

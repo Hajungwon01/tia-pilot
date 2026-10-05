@@ -30,16 +30,30 @@
   {% if s.eligibility %}
     {% set e = s.eligibility %}
     <table>
-      <tr><th>건축 연면적</th><td>{% if e.gross_floor_area_m2 %}{{ "{:,.0f}".format(e.gross_floor_area_m2) }}㎡{% else %}미입력{% endif %}</td></tr>
-      <tr><th>서울시 기준(아파트)</th><td>{{ "{:,.0f}".format(e.threshold_m2) }}㎡ 이상</td></tr>
+      <tr><th>사업 유형</th><td>{{ {"new": "신축", "expansion": "증축", "use_change": "용도변경"}[e.kind] }}{% if e.mixed_use %} · 복합용도{% endif %}</td></tr>
+      <tr><th>{% if e.kind == "expansion" %}증축 후 합산 연면적{% else %}건축 연면적{% endif %}</th><td>{% if e.gross_floor_area_m2 %}{{ "{:,.0f}".format(e.gross_floor_area_m2) }}㎡{% else %}미입력{% endif %}</td></tr>
+      <tr><th>서울시 기준(아파트)</th><td>{{ "{:,.0f}".format(e.threshold_m2) }}㎡ 이상{% if e.mixed_use and e.swa is not none %} · 복합용도 Swa {{ "{:,.0f}".format(e.swa) }} (10,000 이상이면 대상){% endif %}</td></tr>
       <tr><th>대상 여부</th><td>
-        {% if e.eligible is none %}판정 불가(연면적 필요)
+        {% if e.eligible is none %}판정 불가(면적 필요)
         {% elif e.eligible %}<b>대상</b> (기준의 {{ "%.1f"|format(e.multiple) }}배)
         {% else %}<b>대상 아님</b> (기준 미만)
         {% endif %}</td></tr>
+      {% if e.abbreviated and e.eligible %}
+      <tr><th>약식 평가(지침 제23조)</th><td>
+        {% if e.abbreviated.applied %}<span class="badge ok">적용</span>
+        {% elif e.abbreviated.possible %}<span class="badge warn">가능(미적용)</span>
+        {% elif e.abbreviated.possible is none %}<span class="badge warn">판정 불가</span>
+        {% else %}<span class="badge">불가</span>{% endif %}
+        <span class="small">{{ e.abbreviated.reasons | join(" / ") }}</span></td></tr>
+      {% endif %}
       <tr><th>시간적 범위</th><td>준공 후 {{ s.scope.target_years | join("년, ") }}년</td></tr>
-      <tr><th>공간적 범위</th><td>반경 {{ s.scope.radius_km }}km, 교차로 {{ s.scope.min_intersections }}개 이상{% if s.scope.spatial_provisional %} <span class="badge warn">임시</span>{% endif %}</td></tr>
+      <tr><th>공간적 범위</th><td>
+        {% if s.scope.spatial_mode == "complex" %}공동주택 단지 내 (약식)
+        {% elif s.scope.spatial_mode == "two_intersections" %}영향 큰 2개 이내 교차로 (약식)
+        {% else %}반경 {{ s.scope.radius_km }}km, 교차로 {{ s.scope.min_intersections }}개 이상{% endif %}
+        {% if s.scope.spatial_provisional %} <span class="badge warn">임시</span>{% endif %}</td></tr>
     </table>
+    {% for n in e.notes %}<p class="muted small">· {{ n }}</p>{% endfor %}
     <p class="muted small">근거: {{ e.basis }}</p>
   {% endif %}
 </div>

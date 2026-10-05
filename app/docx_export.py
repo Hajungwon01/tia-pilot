@@ -65,6 +65,7 @@ KEY_TITLES = {
 
 NEEDS_INPUT_LABELS = {
     "project.gross_floor_area_m2": "건축 연면적(㎡) — 평가 대상 여부·범위 판정",
+    "project.expansion_areas": "증축: 기존 준공 연면적·증축 연면적(㎡) — 평가 대상 여부 판정",
     "demand.background_growth_rate": "배경교통량 연 증가율",
     "demand.project_share": "방면별 사업 교통량 배분율",
     "survey.signal_geometry": "교차로 차로운영·기하구조·신호주기·현시(현장 조사)",

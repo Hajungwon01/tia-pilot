@@ -39,10 +39,12 @@ class FactTable:
 def build_facts(state: ReportState) -> FactTable:
     f = FactTable()
     p = state.project
-    f.add(p.households, p.gross_floor_area_m2, p.floors, 1, 3)
+    f.add(p.households, p.gross_floor_area_m2, p.floors, 1, 3, p.existing_gfa_m2, p.expansion_gfa_m2)
+    f.add(*[u.area_m2 for u in p.other_uses])
     if state.scope:
-        f.add(state.scope.get("radius_km"), state.scope.get("min_intersections"),
-              state.scope.get("eligibility", {}).get("threshold_m2"))
+        elig = state.scope.get("eligibility", {})
+        f.add(state.scope.get("radius_km"), state.scope.get("min_intersections"), state.scope.get("max_intersections"),
+              elig.get("threshold_m2"), elig.get("gross_floor_area_m2"), elig.get("swa"))
     t = state.trips
     if t:
         for pk in (t.am_peak, t.pm_peak):

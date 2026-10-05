@@ -24,11 +24,66 @@
       "note": "이 외 건축물의 심의 주체는 조례 제5조②·③ 추가 확인 필요"
     }
   },
-  "submission_timing": "건축법 제11조에 따른 허가 전 (시행령 별표 1 비고 4, 개별법 시행 건축물은 별도) — 비고 원문 일부(쪽 경계)는 미확인",
+  "seoul_uses": {
+    "_source": "서울특별시 교통영향평가에 관한 조례 [시행 2024.3.26, 제9155호] 별표 2.가 단일용도의 건축물 (법제처 뷰어 원문 확인 2026-10-05). 복합용도 Swa 식의 Mia(최소 대상규모)로 쓴다.",
+    "items": [
+      {"key": "apartment", "label": "공동주택(아파트)", "threshold_m2": 50000, "metric": "gfa"},
+      {"key": "res1_clinic", "label": "제1종 근린생활시설 중 의원·한의원", "threshold_m2": 13000, "metric": "gfa"},
+      {"key": "res1_other", "label": "그 밖의 제1종 근린생활시설(대피소·무인변전소 제외)", "threshold_m2": 8000, "metric": "gfa"},
+      {"key": "res2", "label": "제2종 근린생활시설", "threshold_m2": 8000, "metric": "gfa"},
+      {"key": "culture_assembly", "label": "문화 및 집회시설(공연장·집회장·관람장·전시장)", "threshold_m2": 8000, "metric": "gfa"},
+      {"key": "wedding", "label": "예식장", "threshold_m2": 1500, "metric": "gfa"},
+      {"key": "zoo", "label": "동·식물원", "threshold_m2": 17000, "metric": "site"},
+      {"key": "religious", "label": "종교시설", "threshold_m2": 12000, "metric": "gfa"},
+      {"key": "retail_wholesale", "label": "판매시설 중 도매시장", "threshold_m2": 8000, "metric": "gfa"},
+      {"key": "retail_shop", "label": "판매시설 중 상점", "threshold_m2": 7000, "metric": "gfa"},
+      {"key": "retail_mall", "label": "판매시설 중 할인점·전문점·백화점·쇼핑센터", "threshold_m2": 3000, "metric": "gfa"},
+      {"key": "transport", "label": "운수시설(여객자동차터미널·철도·공항·항만시설)", "threshold_m2": 6000, "metric": "gfa"},
+      {"key": "medical", "label": "의료시설(병원)", "threshold_m2": 13000, "metric": "gfa"},
+      {"key": "university", "label": "교육연구시설 중 대학·대학교", "threshold_m2": 80000, "metric": "gfa"},
+      {"key": "education_other", "label": "교육연구시설 중 교육원·직업훈련소·학원·연구소·도서관", "threshold_m2": 28000, "metric": "gfa"},
+      {"key": "sports", "label": "운동시설(근린생활시설 제외)", "threshold_m2": 8000, "metric": "gfa"},
+      {"key": "office_public", "label": "공공업무시설", "threshold_m2": 6000, "metric": "gfa"},
+      {"key": "office_general", "label": "일반업무시설", "threshold_m2": 20000, "metric": "gfa"},
+      {"key": "lodging", "label": "숙박시설", "threshold_m2": 20000, "metric": "gfa"},
+      {"key": "amusement", "label": "위락시설(주점영업·단란주점·유원시설 등)", "threshold_m2": 7000, "metric": "gfa"},
+      {"key": "amusement_casino", "label": "위락시설 중 투전기업소·카지노업소·무도장·무도학원", "threshold_m2": 4000, "metric": "gfa"},
+      {"key": "factory", "label": "공장", "threshold_m2": 56000, "metric": "gfa"},
+      {"key": "warehouse", "label": "창고시설(창고·물류터미널·집배송시설)", "threshold_m2": 35000, "metric": "gfa"},
+      {"key": "auto_facility", "label": "자동차 관련 시설 중 주차장·검사장·정비공장", "threshold_m2": 10000, "metric": "gfa"},
+      {"key": "auto_market", "label": "자동차 매매장", "threshold_m2": 18000, "metric": "gfa_or_site"},
+      {"key": "broadcasting", "label": "방송통신시설(제1종 근린생활시설 제외)", "threshold_m2": 27000, "metric": "gfa"},
+      {"key": "tourism_outdoor", "label": "관광휴게시설 중 야외음악당·야외극장", "threshold_m2": 5000, "metric": "gfa"},
+      {"key": "tourism_rest", "label": "관광휴게시설 중 어린이회관·관망탑·휴게소 등", "threshold_m2": 15000, "metric": "gfa"},
+      {"key": "funeral", "label": "장례시설", "threshold_m2": 3000, "metric": "gfa"}
+    ]
+  },
+  "mixed_use": {
+    "formula": "Swa = Σ(Pia / Mia) × 10,000, Swa가 10,000 이상이면 대상 (동일건축물 또는 동일부지에서 2호 가목의 용도 중 둘 이상이 있는 건축물의 신축)",
+    "swa_threshold": 10000,
+    "source": "서울특별시 교통영향평가에 관한 조례 별표 2.나 (시행령 별표 1 2.나와 같은 식, Mia는 각 용도의 대상규모)"
+  },
+  "special_cases": {
+    "source": "서울특별시 교통영향평가에 관한 조례 별표 비고 5 (시행령 별표 1 비고 5와 같은 내용)",
+    "expansion_ratio": 0.3,
+    "expansion_rule": "기존에 교통영향평가를 실시한 후 준공된 건축물을 증축해 연면적 합계가 기존의 30%를 초과해 증가(여러 번 증축은 합산)하거나 증축 규모가 대상규모 이상이면, 준공 면적에 증축 부분을 합산한 면적으로 대상 범위를 적용한다.",
+    "use_change_rule": "기존 준공 건축물의 용도를 변경하는 경우 용도 변경 후의 용도별 건축 연면적으로 대상 여부를 결정한다."
+  },
+  "abbreviated": {
+    "source": "교통영향평가 지침 제23조(약식 교통영향평가) [시행 2021.4.13, 국토교통부고시 제2021-317호]",
+    "case_district": "제1항 제3호: 교통영향평가를 실시한 사업지구에 건축하는 개별 건축물·공동주택으로서 시행령 제13조의4제2항(21층 이상 또는 연면적 10만㎡ 이상 등)에 해당하지 않는 경우",
+    "case_change": "제1항 제4호: 변경심의 대상(시행령 별표 1 비고 5 가목·나목, 영 제13조의8) 중 가) 심의 받아 사업 완료 후 7년이 경과하지 않았거나 나) 확장·증축 규모(합산)가 대상사업 범위를 초과하지 않은 경우",
+    "committee_floors": 21,
+    "committee_gfa_m2": 100000,
+    "change_years": 7,
+    "scope": "제2항: 시간적 범위는 건축물 준공 후 1년까지, 공간적 범위는 건축으로 교통 영향을 많이 받는 2개 이내 교차로(제1항 제3호 공동주택은 단지 내), 현황조사는 공공자료 인용 시 생략 가능, 원단위는 관련 자료 3개 이상 비교·분석(모두 최근 3년 이내 실측이 아니면 1개 이상 조사). 제3항: 개선대책은 진·출입 동선과 범위 내 가로·교차로 중심(제1항 제3호 공동주택은 예외). 제4항: 평가를 실시한 사업지구의 공동주택은 교통환경조사 분석, 장래 교통수요, 문제점·개선대책을 제외할 수 있다."
+  },
+  "submission_timing": "건축법 제11조에 따른 허가 전 (시행령 별표 1 비고 4, 개별법 시행 건축물은 별도) — 비고 원문 확인 완료",
   "not_covered": [
-    "복합용도 건축물(Swa = Σ Pia/Mia × 10,000 ≥ 10,000 이면 대상, 시행령 별표 1 2.나)",
-    "증축·용도변경(기존 연면적 30% 초과 증가 등, 시행령 별표 1 비고 5)",
-    "서울시 별표의 복합용도·비고 (쪽 일부 미확인)",
+    "비고 5 바·사(허가 당시 대상규모 미만이던 사업의 규모 증가·기준 강화에 따른 재평가) — 증축 판정은 가목만 구현, 해당 가능성은 안내",
+    "영 제13조의8 변경심의의 구체적 요건 판정(개선필요사항 통보 후 5년 이내 규모 30% 이상 증가 등) — 입력된 값으로 판정하지 않고 안내만",
+    "복합용도의 유발교통량(공동주택 외 용도의 원단위)",
+    "서울시 수립지침 (심의 관행·약식 적용 세부 기준)",
     "개발사업(택지·도시개발 등) — 부지면적 기준"
   ]
 }

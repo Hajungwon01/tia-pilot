@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from app.config import Settings, get_settings
 from app.core.llm_client import LLMClient
 from app.docx_export import NEEDS_INPUT_LABELS
+from app.eligibility import use_table
 from app.facts import review_sections
 from app.hcm_signal import DetailedIntersection
 from app.pipeline import TIAPipeline
@@ -38,7 +39,27 @@ class AnalyzeRequest(BaseModel):
     access_code: str = ""
 
 
+MAX_OTHER_USES = 10
+
+
+def validate_project(p) -> None:
+    """복합용도 용도 key·중복·개수 검사(알 수 없는 용도는 판정 근거가 없으므로 거부)."""
+    if len(p.other_uses) > MAX_OTHER_USES:
+        raise ServiceError(422, f"복합용도는 최대 {MAX_OTHER_USES}개까지 입력할 수 있습니다.")
+    table = use_table()
+    seen = set()
+    for u in p.other_uses:
+        if u.use == "apartment":
+            raise ServiceError(422, "공동주택 면적은 건축 연면적 칸에 입력하세요(복합용도 목록에는 공동주택 외 용도만).")
+        if u.use not in table:
+            raise ServiceError(422, f"알 수 없는 복합용도 '{u.use}'입니다.")
+        if u.use in seen:
+            raise ServiceError(422, f"복합용도 '{table[u.use]['label']}'가 중복 입력되었습니다.")
+        seen.add(u.use)
+
+
 def validate_request(req: AnalyzeRequest, s: Settings) -> None:
+    validate_project(req.project)
     if len(req.intersections) > s.max_intersections:
         raise ServiceError(422, f"교차로는 최대 {s.max_intersections}개까지 입력할 수 있습니다.")
     for ix in req.intersections:
