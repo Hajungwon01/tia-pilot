@@ -21,6 +21,24 @@ class Settings(BaseSettings):
     max_intersections: int = 12  # 요청당 교차로 수 상한
     max_approaches: int = 8  # 교차로당 접근로 수 상한
 
+    # 인증·저장소
+    app_env: str = "dev"  # "production"이면 BETA_CODES와 SECRET_KEY가 없을 때 앱이 시작되지 않는다(fail closed)
+    beta_codes: str = ""  # 쉼표로 구분한 베타 초대 코드. 비어 있으면(dev) 인증 없이 열림
+    secret_key: str = ""  # 세션 쿠키 서명용(32자 이상 무작위 문자열)
+    session_ttl_hours: int = 12
+    login_max_failures: int = 10  # 같은 IP에서 10분 안에 로그인 실패 허용 횟수
+    trust_proxy: bool = False  # True면 X-Forwarded-For의 첫 주소를 클라이언트 IP로 사용(프록시 뒤 배포 시)
+    db_path: str = "data/app.db"  # SQLite 파일. 배포 시 영구 볼륨 경로로 지정
+    job_ttl_hours: int = 72  # 분석 결과 보관 시간
+
+    @property
+    def beta_code_list(self) -> list[str]:
+        return [c.strip() for c in self.beta_codes.split(",") if c.strip()]
+
+    @property
+    def auth_enabled(self) -> bool:
+        return bool(self.beta_code_list)
+
     @property
     def api_key(self) -> str:
         return self.openai_api_key if self.llm_provider == "openai" else self.anthropic_api_key

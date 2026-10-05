@@ -22,8 +22,8 @@ ProjectInput(+사용자 실측 입력)
 `app/main.py`(라우트) → `app/service.py`(요청 검증·비용 안전장치·작업 저장소·결과 요약) → `TIAPipeline`. 폼은 `app/templates/`.
 - 실제 LLM은 요청에서 명시(`use_llm`)해야만 쓰고, 서버 키 유무·접근 코드(`APP_ACCESS_CODE`)·시간당 횟수 제한을 통과해야 한다.
 - 입력 검증 실패는 422(이유 포함), LLM 오류는 502(상세는 서버 로그에만), 만료된 결과는 404.
-- 작업 저장소는 프로세스 메모리(최대 100건·1시간). 재시작·다중 프로세스 배포 시 사라지므로 Postgres 이전이 필요(TIA-45).
-- 인증은 아직 없다(TIA-83). 배포 전 접근 코드 설정은 필수.
+- 인증(`app/auth.py`): 베타 초대 코드 → HMAC 서명 세션 쿠키. 미들웨어가 `/health`·`/login`·`/api/login|logout` 외 모든 경로를 보호하고, 응답에 보안 헤더(CSP, X-Frame-Options 등)와 `Cache-Control: no-store`를 붙인다. 공개 API 문서(`/docs`)는 끈다. 운영 설정이 위험하면(인증 없음, 짧은 SECRET_KEY, LLM 키+접근코드 없음) 앱이 시작되지 않는다.
+- 저장소(`app/storage.py`): SQLite. 분석 결과는 소유자(코드 해시 기반 사용자 id)별로 분리 저장·TTL 만료, 실제 LLM 호출 횟수도 DB에 기록해 재시작에도 유지. 단일 인스턴스 전제이며 다중 서버로 확장하려면 Postgres 이전이 필요하다(아직 미구현·미검증).
 
 ## 에이전트별 역할과 LLM 사용 여부
 

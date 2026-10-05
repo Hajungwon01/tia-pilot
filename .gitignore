@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 .idea/
 output/
+data/*.db
+data/*.db-*

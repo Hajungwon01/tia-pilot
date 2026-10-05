@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>로그인 — 교통영향평가 초안 자동화</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2230; --muted:#667085; --line:#d8dce5; --accent:#2457d6; --bad:#b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12151c; --card:#1b2029; --ink:#e8ebf2; --muted:#9aa3b5; --line:#2e3646; --accent:#7ea2ff; --bad:#ff8a80; } }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font:15px/1.55 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif; }
+  .banner { background:#7a1f1f; color:#fff; padding:8px 16px; font-size:13px; text-align:center; }
+  main { max-width:420px; margin:10vh auto; padding:0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+  h1 { font-size:20px; margin:0 0 4px; } p { color:var(--muted); font-size:14px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:14px 0 4px; }
+  input { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); font:inherit; }
+  input:focus, button:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  button { margin-top:14px; width:100%; padding:10px; border:0; border-radius:8px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  #msg { color:var(--bad); min-height:1.4em; margin-top:10px; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="banner" role="note">{{ disclaimer }}</div>
+<main>
+  <form id="f" class="card" autocomplete="off">
+    <h1>교통영향평가 초안 자동화</h1>
+    <p>베타 서비스입니다. 초대 코드를 입력하세요.</p>
+    <label for="code">초대 코드</label>
+    <input id="code" type="password" required autofocus autocomplete="off">
+    <button type="submit" id="go">입장</button>
+    <div id="msg" role="alert"></div>
+  </form>
+</main>
+<script>
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("go"), msg = document.getElementById("msg");
+  btn.disabled = true; msg.textContent = "";
+  try {
+    const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: document.getElementById("code").value }) });
+    if (r.ok) { location.href = "/"; return; }
+    msg.textContent = (await r.json()).detail || "로그인에 실패했습니다.";
+  } catch (_) { msg.textContent = "서버에 연결할 수 없습니다."; }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>

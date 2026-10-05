@@ -28,6 +28,14 @@ uvicorn app.main:app --reload --port 8000
 - 배포할 때는 **`APP_ACCESS_CODE`를 반드시 설정**하세요(실제 LLM 사용 시 코드를 요구). 시간당 실제 LLM 분석은 `MAX_LIVE_RUNS_PER_HOUR`(기본 10회)로 제한됩니다.
 - `.env` 설정: [.env.example](.env.example)
 
+### 인증(베타 초대 코드)과 저장소
+
+- `BETA_CODES`를 설정하면 로그인(초대 코드)이 필요합니다. 코드를 사용자마다 하나씩 나눠 주고, 세션 쿠키는 `SECRET_KEY`로 서명됩니다(HttpOnly, SameSite=Lax, 운영에서는 Secure).
+- **`APP_ENV=production`에서는 `BETA_CODES`·`SECRET_KEY`(32자 이상)가 없으면 앱이 시작되지 않습니다.** LLM 키가 있는데 `APP_ACCESS_CODE`가 없어도 시작되지 않습니다.
+- 로그인 실패는 같은 IP에서 10분에 `LOGIN_MAX_FAILURES`(기본 10)회까지입니다. 프록시 뒤에서는 `TRUST_PROXY=true`.
+- 분석 결과는 SQLite(`DB_PATH`)에 `JOB_TTL_HOURS`(기본 72시간) 동안 저장되고, **계정별로 분리**됩니다(다른 계정은 job_id를 알아도 조회 불가). 실제 LLM 호출 횟수 제한도 같은 DB에 기록돼 재시작해도 유지됩니다.
+- SQLite는 **단일 인스턴스 전제**입니다. 배포 시 `DB_PATH`를 영구 볼륨 경로로 지정하세요(임시 디스크면 재배포 때 결과가 사라집니다).
+
 ### API
 
 | 메서드 | 경로 | 설명 |

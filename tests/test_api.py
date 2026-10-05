@@ -5,9 +5,9 @@ import pytest
 from docx import Document
 from fastapi.testclient import TestClient
 
-from app import main
+from app import auth, main
 from app.config import get_settings
-from app.service import JobStore, RateLimiter
+from app.storage import Database, LlmRunLog, SqliteJobStore
 
 PAYLOAD = {
     "project": {"name": "테스트 단지", "address": "서울 OO동", "land_use": "apartment", "households": 1500,
@@ -26,9 +26,11 @@ def payload(**over):
 
 
 @pytest.fixture
-def client(monkeypatch):
-    monkeypatch.setattr(main, "store", JobStore())
-    monkeypatch.setattr(main, "limiter", RateLimiter())
+def client(monkeypatch, tmp_path):
+    db = Database(tmp_path / "t.db")
+    monkeypatch.setattr(main, "store", SqliteJobStore(db))
+    monkeypatch.setattr(main, "limiter", LlmRunLog(db))
+    monkeypatch.setattr(main, "throttle", auth.LoginThrottle())
     return TestClient(main.app)
 
 
@@ -203,21 +205,51 @@ def test_llm_failure_is_502_without_leaking_details(client, live, monkeypatch):
     assert r.status_code == 502 and "sk-xxxx" not in r.text and "secret" not in r.text
 
 
-# ── 저장소·제한기 단위 ──
-def test_rate_limiter_window():
-    rl = RateLimiter()
+# ── 저장소·제한기 단위 (SQLite) ──
+def mk_state(name="x"):
+    from app.schemas import ProjectInput
+    from app.state import ReportState
+    return ReportState(project=ProjectInput(name=name, address="y", households=1))
+
+
+def test_llm_run_log_window_and_persistence(tmp_path):
+    db = Database(tmp_path / "r.db")
+    rl = LlmRunLog(db)
     assert rl.allow(2, now=0) and rl.allow(2, now=10) and not rl.allow(2, now=20)
+    assert not LlmRunLog(Database(tmp_path / "r.db")).allow(2, now=30)  # 재시작(새 객체)해도 횟수 유지
     assert rl.allow(2, now=3601)  # 첫 기록이 1시간 지나 풀림
 
 
-def test_job_store_ttl_and_capacity(monkeypatch):
-    import time as _t
-    from app.schemas import ProjectInput
-    from app.state import ReportState
-    mk = lambda: ReportState(project=ProjectInput(name="x", address="y", households=1))  # noqa: E731
-    s = JobStore(max_items=2, ttl_sec=100)
-    a, b, c = s.put(mk()), s.put(mk()), s.put(mk())
-    assert s.get(a) is None and s.get(b) and s.get(c)  # 용량 초과 시 오래된 것부터 제거
-    now = _t.time()
-    monkeypatch.setattr("app.service.time.time", lambda: now + 101)
-    assert s.get(b) is None  # TTL 만료
+def test_job_store_roundtrip_survives_reopen(tmp_path):
+    p = tmp_path / "j.db"
+    s1 = SqliteJobStore(Database(p))
+    st = mk_state("보존")
+    st.stages = {"A": {1: {"without": {"avg_delay": 1.0}}}}  # 정수 키는 JSON을 거치며 문자열이 된다
+    jid = s1.put(st, owner="u1")
+    got = SqliteJobStore(Database(p)).get(jid, "u1")  # 새 연결(=서버 재시작)
+    assert got.project.name == "보존" and got.stages["A"]["1"]["without"]["avg_delay"] == 1.0
+
+
+def test_job_store_is_owner_scoped(tmp_path):
+    s = SqliteJobStore(Database(tmp_path / "o.db"))
+    jid = s.put(mk_state(), owner="alice")
+    assert s.get(jid, "alice") is not None
+    assert s.get(jid, "bob") is None and s.get("nope", "alice") is None
+
+
+def test_job_store_ttl_and_capacity(tmp_path):
+    s = SqliteJobStore(Database(tmp_path / "c.db"), ttl_sec=100, max_items=2)
+    a = s.put(mk_state(), "u", now=1000)
+    b = s.put(mk_state(), "u", now=1001)
+    c = s.put(mk_state(), "u", now=1002)
+    assert s.get(a, "u", now=1003) is None and s.get(b, "u", now=1003) and s.get(c, "u", now=1003)  # 용량 초과 시 오래된 것 제거
+    assert s.get(b, "u", now=1101.5) is None  # TTL 만료(조회 시에도 확인)
+    s.put(mk_state(), "u", now=2000)  # 쓰기 때 만료분 정리
+    assert s.count() == 1
+
+
+def test_reports_survive_server_restart(client, tmp_path, monkeypatch):
+    j = client.post("/api/analyze", json=PAYLOAD).json()
+    db_path = tmp_path / "t.db"
+    monkeypatch.setattr(main, "store", SqliteJobStore(Database(db_path)))  # 재시작을 흉내: 새 저장소 객체
+    assert client.get(j["download_url"]).status_code == 200

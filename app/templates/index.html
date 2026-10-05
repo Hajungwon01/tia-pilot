@@ -47,7 +47,10 @@
 <body>
 <div class="banner" role="note">{{ disclaimer }}</div>
 <main>
-  <h1>교통영향평가 초안 자동화</h1>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+    <h1>교통영향평가 초안 자동화</h1>
+    {% if auth_enabled %}<button type="button" class="btn small" id="logout">로그아웃</button>{% endif %}
+  </div>
   <p class="muted">서울시 공동주택(아파트) 교통영향평가서 <b>초안</b>을 만듭니다. 지침 기준표·계산식은 원문을 확인해 반영했고, 원단위는 현재 <b>임시값</b>입니다.</p>
 
   <form id="form" class="card" autocomplete="off">
@@ -249,6 +252,7 @@ $("sample").onclick = () => {
     { name: "N", vol: 400, sat: 1800, green: 40, share: 40 }, { name: "E", vol: 500, sat: 1800, green: 40, share: 10 } ] });
 };
 addIx();
+if ($("logout")) $("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
 </script>
 </body>
 </html>

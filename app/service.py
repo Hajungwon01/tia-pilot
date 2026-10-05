@@ -1,9 +1,6 @@
-"""웹/API가 공유하는 분석 실행 로직: 요청 검증, 비용 안전장치, 작업 저장소, 결과 요약."""
+"""웹/API가 공유하는 분석 실행 로직: 요청 검증, 비용 안전장치, 결과 요약."""
 import logging
 import secrets
-import time
-import uuid
-from collections import OrderedDict, deque
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +11,7 @@ from app.facts import review_sections
 from app.pipeline import TIAPipeline
 from app.schemas import ProjectInput
 from app.state import AgencyInfo, IntersectionInput, ReportState
+from app.storage import LlmRunLog, SqliteJobStore
 
 log = logging.getLogger("tia.service")
 
@@ -38,48 +36,6 @@ class AnalyzeRequest(BaseModel):
     access_code: str = ""
 
 
-class JobStore:
-    """분석 결과를 메모리에 잠시 보관한다(프로세스 단위, 재시작하면 사라짐 — MVP)."""
-
-    def __init__(self, max_items: int = 100, ttl_sec: int = 3600) -> None:
-        self._d: OrderedDict[str, tuple[float, ReportState]] = OrderedDict()
-        self.max_items, self.ttl = max_items, ttl_sec
-
-    def put(self, state: ReportState) -> str:
-        self._evict()
-        job_id = uuid.uuid4().hex
-        self._d[job_id] = (time.time(), state)
-        while len(self._d) > self.max_items:
-            self._d.popitem(last=False)
-        return job_id
-
-    def get(self, job_id: str) -> ReportState | None:
-        self._evict()
-        item = self._d.get(job_id)
-        return item[1] if item else None
-
-    def _evict(self) -> None:
-        now = time.time()
-        for k in [k for k, (t, _) in self._d.items() if now - t > self.ttl]:
-            del self._d[k]
-
-
-class RateLimiter:
-    """실제 LLM 분석의 시간당 횟수를 서버 전체 기준으로 제한한다."""
-
-    def __init__(self) -> None:
-        self._hits: deque[float] = deque()
-
-    def allow(self, limit: int, now: float | None = None) -> bool:
-        now = time.time() if now is None else now
-        while self._hits and now - self._hits[0] > 3600:
-            self._hits.popleft()
-        if len(self._hits) >= limit:
-            return False
-        self._hits.append(now)
-        return True
-
-
 def validate_request(req: AnalyzeRequest, s: Settings) -> None:
     if len(req.intersections) > s.max_intersections:
         raise ServiceError(422, f"교차로는 최대 {s.max_intersections}개까지 입력할 수 있습니다.")
@@ -102,7 +58,7 @@ def validate_request(req: AnalyzeRequest, s: Settings) -> None:
         raise ServiceError(422, "교차로 이름이 중복됩니다.")
 
 
-def check_llm_allowed(req: AnalyzeRequest, s: Settings, limiter: RateLimiter) -> None:
+def check_llm_allowed(req: AnalyzeRequest, s: Settings, limiter: LlmRunLog) -> None:
     if not req.use_llm:
         return
     if s.llm_mock_mode:
@@ -113,7 +69,7 @@ def check_llm_allowed(req: AnalyzeRequest, s: Settings, limiter: RateLimiter) ->
         raise ServiceError(429, f"실제 LLM 분석은 시간당 {s.max_live_runs_per_hour}회로 제한되어 있습니다. 잠시 후 다시 시도하세요.")
 
 
-async def run_analysis(req: AnalyzeRequest, store: JobStore, limiter: RateLimiter,
+async def run_analysis(req: AnalyzeRequest, store: SqliteJobStore, limiter: LlmRunLog, owner: str,
                        settings: Settings | None = None) -> tuple[str, ReportState]:
     s = settings or get_settings()
     validate_request(req, s)
@@ -129,7 +85,7 @@ async def run_analysis(req: AnalyzeRequest, store: JobStore, limiter: RateLimite
     except Exception as e:  # LLM 호출 실패 등. 상세는 서버 로그에만 남긴다.
         log.exception("분석 실패")
         raise ServiceError(502, f"분석 중 오류가 발생했습니다({type(e).__name__}).") from e
-    return store.put(state), state
+    return store.put(state, owner), state
 
 
 def summarize(state: ReportState, job_id: str) -> dict:
