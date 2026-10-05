@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | WBS | [BACKLOG.md](BACKLOG.md)(Epic/Story 51개, 스프린트 배정) + GitHub 보드 `TIA Pilot` | 부분 | 과정 양식(표)으로 변환. 단계(기획~발표)별로 재분류 | S1 |
 | 프로젝트 기획서 | [ROADMAP.md](ROADMAP.md) §1~5, 문제정의·6-Agent 매핑·리스크 | 부분 | 기획서 양식으로 재구성(배경·차별점·범위·리스크). 경쟁 확인 한계 문구 포함 | S1 |
-| 요구사항 정의서 | 없음. 근거 자료: 체크리스트 [data/reflection_checklist.json](data/reflection_checklist.json)(지침 55항목), 판정 기준 [data/eligibility_thresholds.json](data/eligibility_thresholds.json) | 없음 | 기능·비기능 요구사항 ID화. 입력(연면적 등)·출력·디스클레이머·성능 | S2 |
+| 요구사항 정의서 | 없음. 근거 자료: 체크리스트 [data/reflection_checklist.json](data/reflection_checklist.json)(지침 본문·별표 1·2·3·7·8, 101항목), 판정 기준 [data/eligibility_thresholds.json](data/eligibility_thresholds.json) | 없음 | 기능·비기능 요구사항 ID화. 입력(연면적 등)·출력·디스클레이머·성능 | S2 |
 
 ## 2. 데이터 수집 및 저장
 

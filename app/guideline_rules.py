@@ -1,0 +1,54 @@
+"""지침 별표의 정량 기준을 계산 결과로 판정하는 규칙 (체크리스트 check == "rule").
+
+규칙 함수는 (상태, 메시지)를 돌려준다. 입력이 없어 판정할 수 없으면 추측하지 않고 UNKNOWN으로 둔다.
+"""
+from collections.abc import Callable
+
+from app.reflection import load_checklist
+from app.state import ReportState
+
+OK = "ok"  # 기준 충족 또는 해당 없음
+ATTENTION = "attention"  # 지침이 검토를 요구하는 조건에 해당
+UNKNOWN = "unknown"  # 판정에 필요한 입력·계산이 없음
+
+STATUS_LABELS = {OK: "이상 없음", ATTENTION: "검토 필요", UNKNOWN: "입력 필요"}
+
+ENTRANCE_HEAVY_DIRECTION = 400  # 별표 2 3.가(31)㈏, 8.가⑾: 첨두시 중방향 교통량(대/시)
+
+
+def entrance_400(state: ReportState) -> tuple[str, str]:
+    """첨두시 중방향 발생교통량 ≥ 400대/시이면 진·출입구 2개 차로 이상 또는 2개소 이상을 검토해야 한다.
+
+    사업지 발생교통량은 유발교통량 계산의 AM·PM 첨두 승용차 통행(유입·유출 중 큰 쪽)으로 본다.
+    """
+    t = state.trips
+    if t is None:
+        return UNKNOWN, "유발교통량이 계산되지 않아 판정할 수 없음"
+    heavy = {"AM": max(t.am_peak.in_trips, t.am_peak.out_trips),
+             "PM": max(t.pm_peak.in_trips, t.pm_peak.out_trips)}
+    peak = max(heavy, key=heavy.get)
+    v = heavy[peak]
+    note = " (유발 원단위가 임시값이라 확정 판정이 아님)" if t.rates_status == "PROVISIONAL" else ""
+    if v >= ENTRANCE_HEAVY_DIRECTION:
+        return ATTENTION, (f"{peak} 첨두시 중방향 발생교통량 {v:.0f}대/시 ≥ {ENTRANCE_HEAVY_DIRECTION}대/시: "
+                           f"진·출입구를 편도 2개 차로 이상 또는 2개소 이상으로 하는 방안 검토 필요{note}")
+    return OK, (f"{peak} 첨두시 중방향 발생교통량 {v:.0f}대/시 < {ENTRANCE_HEAVY_DIRECTION}대/시: "
+                f"별표 2의 2개소·2개 차로 검토 조건에 해당하지 않음{note}")
+
+
+RULES: dict[str, Callable[[ReportState], tuple[str, str]]] = {
+    "entrance_400": entrance_400,
+}
+
+
+def evaluate_rules(state: ReportState, checklist: dict | None = None) -> list[dict]:
+    """체크리스트의 rule 항목을 모두 판정한다. 규칙 이름을 모르면 UNKNOWN(조용히 통과시키지 않는다)."""
+    out = []
+    for item in (checklist or load_checklist())["items"]:
+        if item["check"] != "rule":
+            continue
+        fn = RULES.get(item["rule"])
+        status, message = fn(state) if fn else (UNKNOWN, f"규칙 {item['rule']} 미구현")
+        out.append({"id": item["id"], "ref": item["ref"], "text": item["text"],
+                    "status": status, "label": STATUS_LABELS[status], "message": message})
+    return out

@@ -1,4 +1,5 @@
 from app.eligibility import assess_eligibility, spatial_scope
+from app.reflection import load_checklist
 from app.state import ReportState
 
 from .base import BaseAgent
@@ -50,5 +51,14 @@ class PlanningAgent(BaseAgent):
             + (" [임시 적용]" if scope.get("spatial_provisional") else ""),
             self.name,
         )
-        state.put("intro.scope", state.sections["scope.target_years"] + "\n" + state.sections["scope.spatial"], self.name)
+        state.put("intro.scope", "\n".join([state.sections["scope.target_years"], state.sections["scope.spatial"],
+                                            focus_items_text()]), self.name)
         return state
+
+
+def focus_items_text() -> str:
+    """별표 3 중점분석 항목(개별 건축물, 6.)을 보고서 범위 문단으로 옮긴다. 원천은 체크리스트 JSON."""
+    cl = load_checklist()
+    rows = [f"- {i['ref'][-1]}. {i['text'].removeprefix('중점분석: ')}" for i in cl["items"] if i.get("group") == "annex3"]
+    return ("중점분석 항목 (지침 별표 3 6. 개별 건축물 준용 — 공동주택은 별표 3에 따로 열거되지 않아 확인 필요):\n"
+            + "\n".join(rows))

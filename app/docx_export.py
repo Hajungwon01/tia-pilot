@@ -295,8 +295,10 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
     doc.add_heading("작성 현황 요약 (검토용)", level=1)
     r = state.reflection
     if r:
-        doc.add_paragraph(f"지침 체크리스트(v0.1) 자동 점검: {r['passed']} / {r['auto_total']} 항목 충족. "
+        doc.add_paragraph(f"지침 체크리스트(v0.2) 자동 점검: {r['passed']} / {r['auto_total']} 항목 충족. "
                           f"사람이 직접 확인할 항목 {len(r['manual'])}건.")
+        for rule in r.get("rules", []):
+            doc.add_paragraph(f"[{rule['label']}] {rule['ref']}: {rule['message']}", style="List Bullet")
     if state.needs_input:
         doc.add_heading("입력이 더 필요한 항목", level=2)
         for k in state.needs_input:

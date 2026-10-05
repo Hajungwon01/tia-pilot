@@ -121,7 +121,7 @@ def summarize(state: ReportState, job_id: str) -> dict:
         "los": state.los,
         "reflection": {"passed": r.get("passed"), "auto_total": r.get("auto_total"),
                        "missing": r.get("missing", []), "manual": r.get("manual", []),
-                       "flagged": flagged},
+                       "rules": r.get("rules", []), "flagged": flagged},
         "needs_input": [{"key": k, "label": NEEDS_INPUT_LABELS.get(k, k)} for k in state.needs_input],
         "warnings": state.warnings,
         "document_markdown": state.document,
