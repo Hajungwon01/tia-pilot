@@ -47,7 +47,7 @@ def test_detailed_intersection_flows_through_pipeline():
     s1 = st.stages[name][1]
     assert set(s1) == {"without", "with", "improved", "delay_reduction", "notes"}
     assert "los.intersections" in st.sections and "demand.los_three_stage" in st.sections
-    assert any("운영분석 절차" in w for w in st.warnings) and st.needs_input == []
+    assert any("운영분석 절차" in w for w in st.warnings) and set(st.needs_input) <= {"project.unit_types", "project.planned_parking_spaces"}  # 주차 입력만 남음
 
 
 def test_stage_ordering_with_project_and_growth():

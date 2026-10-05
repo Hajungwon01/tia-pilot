@@ -70,6 +70,18 @@
       <div><label for="floors">최고 층수</label><input id="floors" type="number" min="1" step="1"></div>
     </div>
 
+    <details id="parkBox" style="margin-top:10px">
+      <summary><b>주차 (법정 주차대수·계획 대수)</b> <span class="muted small">(비워 두면 “입력 필요”로 표시)</span></summary>
+      <p class="muted small" style="margin:6px 0">주택형별 전용면적·세대수를 입력하면 주택건설기준 등에 관한 규정 제27조(특별시)로 법정 주차대수를 계산합니다. 세대수 합계가 위 세대수와 같아야 합니다.</p>
+      <div id="unitTypes"></div>
+      <button type="button" class="btn small" id="addUnit">+ 주택형 추가</button>
+      <div class="grid" style="margin-top:8px">
+        <div><label for="planned">계획 주차대수(건축계획)</label><input id="planned" type="number" min="0" step="1"></div>
+        <div><label for="pdem">세대당 주차수요 원단위(대/세대)</label><input id="pdem" type="number" min="0" step="any" placeholder="비우면 임시값"></div>
+        <div><label for="psrc">원단위 자료 출처</label><input id="psrc" maxlength="300" placeholder="유사 건축물 조사·관련 자료"></div>
+      </div>
+    </details>
+
     <details id="kindBox" style="margin-top:10px">
       <summary><b>사업 유형·복합용도·약식 평가</b> <span class="muted small">(신축 단일 아파트면 열지 않아도 됩니다)</span></summary>
       <div class="grid" style="margin-top:8px">
@@ -251,6 +263,21 @@ function addUse() {
   row.querySelector(".del-use").onclick = () => row.remove();
 }
 $("addUse").onclick = addUse;
+function addUnit(d) {
+  const row = document.createElement("div"); row.className = "unit-row";
+  row.style.cssText = "display:grid;gap:8px;grid-template-columns:1fr 1fr auto;align-items:end;margin:6px 0";
+  row.innerHTML = `<div><label>세대당 전용면적(㎡)</label><input class="ut-area" type="number" min="1" step="any"></div>
+    <div><label>세대수</label><input class="ut-hh" type="number" min="1" step="1"></div>
+    <button type="button" class="btn small del-unit">삭제</button>`;
+  $("unitTypes").appendChild(row);
+  row.querySelector(".del-unit").onclick = () => row.remove();
+  if (d) { row.querySelector(".ut-area").value = d[0]; row.querySelector(".ut-hh").value = d[1]; }
+}
+$("addUnit").onclick = () => addUnit();
+function fillSampleParking() {  // 1,500세대 샘플: 59㎡ 300 + 84㎡ 900 + 114㎡ 300
+  $("unitTypes").innerHTML = ""; [[59, 300], [84, 900], [114, 300]].forEach(addUnit);
+  $("planned").value = 2000; $("parkBox").open = true;
+}
 function syncKind() {
   const k = $("kind").value;
   document.querySelectorAll(".expOnly").forEach(e => e.style.display = k === "expansion" ? "" : "none");
@@ -273,7 +300,11 @@ function buildPayload() {
       existing_evaluated: kind === "new" ? null : triState($("exEval").value),
       in_evaluated_district: triState($("inDistrict").value),
       years_since_completion: kind === "new" ? null : num($("yrs").value),
-      request_abbreviated: $("reqAbbr").checked },
+      request_abbreviated: $("reqAbbr").checked,
+      unit_types: [...document.querySelectorAll(".unit-row")].map(r => ({ exclusive_area_m2: num(r.querySelector(".ut-area").value),
+        households: num(r.querySelector(".ut-hh").value) })).filter(u => u.exclusive_area_m2 !== null && u.households !== null),
+      planned_parking_spaces: num($("planned").value), parking_demand_per_household: num($("pdem").value),
+      parking_demand_source: $("psrc").value.trim() },
     background_growth_rate: num($("growth").value) === null ? null : num($("growth").value) / 100,
     intersections: [],
     agency: null,
@@ -327,6 +358,7 @@ $("sample").onclick = () => {
   document.querySelector('input[name="mode"][value="simple"]').checked = true; setMode();  // 간이 입력 샘플
   $("name").value = "샘플 단지"; $("address").value = "서울특별시 OO구 OO동"; $("households").value = 1500;
   $("gfa").value = 180000; $("floors").value = 25; $("growth").value = 2;
+  fillSampleParking();
   $("intersections").innerHTML = "";
   addIx({ name: "A교차로", cycle: 120, peak: "pm", aps: [
     { name: "N", vol: 400, sat: 1800, green: 40, share: 40 }, { name: "E", vol: 500, sat: 1800, green: 40, share: 10 } ] });
@@ -505,6 +537,7 @@ document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener(
 $("sampleHcm").onclick = () => {
   $("name").value ||= "샘플 단지"; $("address").value ||= "서울특별시 OO구 OO동"; $("households").value ||= 1500;
   $("gfa").value ||= 180000; $("growth").value ||= 2;
+  if (Number($("households").value) === 1500) fillSampleParking();  // 세대수를 바꿨다면 주택형 합계가 어긋나므로 채우지 않음
   $("dintersections").innerHTML = "";
   addDix({ name: "A도로×B도로", cycle: 120, phf: 0.95, peak: "pm", phases: [[45, 3], [20, 3], [46, 3]], aps: [{
     "dp-name": "EB", "dp-topo": "four_way", "dp-case": "6", "dp-lanes": 3, "dp-vl": 90, "dp-vt": 600, "dp-vr": 320,

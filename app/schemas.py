@@ -15,6 +15,13 @@ class UseArea(BaseModel):
     area_m2: float = Field(gt=0)  # 해당 용도의 건축 연면적(㎡) 또는 부지면적(동·식물원 등 부지면적 기준 용도)
 
 
+class UnitType(BaseModel):
+    """주택형(전용면적) 구성. 법정 주차대수 산정에 쓴다."""
+
+    exclusive_area_m2: float = Field(gt=0)  # 세대당 전용면적(㎡)
+    households: int = Field(gt=0)
+
+
 class ProjectInput(BaseModel):
     """Planning 에이전트 입력: 프로젝트 규모/위치/용도."""
 
@@ -33,6 +40,12 @@ class ProjectInput(BaseModel):
     expansion_gfa_m2: float | None = Field(default=None, gt=0)  # 증축: 이번 증축 연면적
     prior_expansion_gfa_m2: float = Field(default=0.0, ge=0)  # 증축: 이전에 이미 증축한 연면적 합계
     existing_evaluated: bool | None = None  # 기존 건축물이 교통영향평가를 받고 준공됐는지
+
+    # 주차 (지침 제15조, 별표 2 8.가⒁)
+    unit_types: list[UnitType] = Field(default_factory=list)  # 주택형별 전용면적·세대수(합계가 세대수와 같아야 함)
+    planned_parking_spaces: int | None = Field(default=None, ge=0)  # 건축계획상 총 주차대수
+    parking_demand_per_household: float | None = Field(default=None, gt=0)  # 세대당 주차수요 원단위(대/세대), 없으면 임시값
+    parking_demand_source: str = Field(default="", max_length=300)  # 원단위 자료 출처(조사 사례·관련 자료)
 
     # 약식 평가 (지침 제23조)
     in_evaluated_district: bool | None = None  # 교통영향평가를 실시한 사업지구 안에 건축하는지

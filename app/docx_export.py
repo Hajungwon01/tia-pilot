@@ -65,6 +65,8 @@ KEY_TITLES = {
 
 NEEDS_INPUT_LABELS = {
     "project.gross_floor_area_m2": "건축 연면적(㎡) — 평가 대상 여부·범위 판정",
+    "project.unit_types": "주택형별 전용면적·세대수 — 법정 주차대수 산정",
+    "project.planned_parking_spaces": "계획 주차대수(건축계획) — 법정 대비 비교·원단위 수요 대비 점검",
     "project.expansion_areas": "증축: 기존 준공 연면적·증축 연면적(㎡) — 평가 대상 여부 판정",
     "demand.background_growth_rate": "배경교통량 연 증가율",
     "demand.project_share": "방면별 사업 교통량 배분율",

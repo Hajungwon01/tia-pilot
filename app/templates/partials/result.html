@@ -58,6 +58,21 @@
   {% endif %}
 </div>
 
+{% if s.parking %}
+{% set k = s.parking %}
+<div class="card">
+  <h3>주차수요 예측 (원단위법, 지침 제15조)</h3>
+  <table>
+    <tr><th>주차수요</th><td><b>{{ "{:,.0f}".format(k.demand) }}대</b> — 세대당 {{ k.demand_per_household }}대
+      {% if k.rate_status == "PROVISIONAL" %}<span class="badge warn">임시 원단위 — 잠정</span>{% else %}(입력 원단위{% if k.rate_source %}, {{ k.rate_source }}{% endif %}){% endif %}</td></tr>
+    <tr><th>법정 주차대수</th><td>{% if k.legal_total is not none %}<b>{{ "{:,}".format(k.legal_total) }}대</b> (공동주택 {{ "{:,}".format(k.legal_apartment) }}{% if k.legal_others_total %} + 다른 용도 {{ k.legal_others_total }}{% endif %}){% if not k.legal_complete %} <span class="badge warn">일부 미산정</span>{% endif %}{% else %}입력 필요(주택형별 전용면적·세대수){% endif %}</td></tr>
+    <tr><th>계획 주차대수</th><td>{% if k.planned is not none %}<b>{{ "{:,}".format(k.planned) }}대</b>{% if k.planned_vs_legal_pct is not none %} · 법정의 {{ "%.0f"|format(k.planned_vs_legal_pct) }}% (권장 상한 {{ "%.0f"|format(k.cap_pct) }}%){% endif %}{% else %}입력 필요{% endif %}</td></tr>
+    {% if k.planned_vs_demand is not none %}<tr><th>계획 − 수요</th><td>{{ "{:+,.0f}".format(k.planned_vs_demand) }}대 {% if k.planned_vs_demand < 0 %}<span class="badge bad">부족 예상</span>{% endif %}</td></tr>{% endif %}
+  </table>
+  <p class="muted small">법정 대수: 주택건설기준 등에 관한 규정 제27조제1항(특별시: 전용 85㎡ 이하 75㎡당 1대, 초과 65㎡당 1대, 세대당 최소 1대·60㎡ 이하 0.7대)을 적용했습니다.</p>
+</div>
+{% endif %}
+
 {% if s.trips %}
 <div class="card">
   <h3>사업 유발교통량 (승용차)</h3>

@@ -2,6 +2,7 @@ from app.hcm_signal import analyze_detailed
 from app.hcm_stages import analyze_stages_detailed
 from app.hcm_stages import summarize as summarize_detailed
 from app.los import analyze_intersection
+from app.parking import assess_parking
 from app.stages import MEANINGFUL_REDUCTION, analyze_stages, grade_rank
 from app.state import ReportState
 from app.trip_generation import estimate_trips
@@ -35,6 +36,7 @@ class DataAgent(BaseAgent):
         )
         state.put("demand.method", "교통유발 원단위를 활용한 직접수요예측기법 (지침 제11조③)", self.name)
         state.put("unitrate.peak_split", "첨두시(AM/PM)를 구분한 원단위 적용", self.name)
+        self._parking(state)
 
         names = [ix.name for ix in state.intersections] + [ix.name for ix in state.detailed_intersections]
         if len(set(names)) != len(names):
@@ -68,6 +70,56 @@ class DataAgent(BaseAgent):
                 if key not in state.needs_input:
                     state.needs_input.append(key)
         return state
+
+    def _parking(self, state: ReportState) -> None:
+        """주차수요 예측(원단위법, 지침 제15조)과 법정·계획 주차대수 비교."""
+        p = state.project
+        r = assess_parking(p)
+        state.parking = r.model_dump()
+        prov = r.rate_status == "PROVISIONAL"
+        if prov:
+            state.warn("주차수요 원단위가 임시값(근거 자료 없음): 주차수요 결과는 검증되지 않음 — 유사 건축물 현지조사 1개소 이상과 "
+                       "관련 자료 3개 이상으로 산출(지침 제15조①)하거나 원단위를 직접 입력해야 함")
+        if r.legal_apartment is None:
+            self._need(state, "project.unit_types")
+        if r.planned is None:
+            self._need(state, "project.planned_parking_spaces")
+        for n in r.notes:
+            state.warn(n)
+
+        rate_txt = f"세대당 {r.demand_per_household:g}대" + ("(임시 원단위)" if prov else f"(입력 원단위{', 출처: ' + r.rate_source if r.rate_source else ''})")
+        lines = [f"원단위법 주차수요: {rate_txt} × {p.households}세대 × 이용효율 {r.utilization:g} = {r.demand:,.0f}대 (단기·장기 동일 원단위 적용)"]
+        if r.legal_total is not None:
+            basis = ("전용면적 합계 기준" if r.binding == "area" else "세대당 최소 기준")
+            lines.append(f"법정 주차대수: 공동주택 {r.legal_apartment:,}대({basis}, 주택건설기준 등에 관한 규정 제27조제1항)"
+                         + (f" + 다른 용도 {r.legal_others_total:,}대(서울 주차장 조례 별표 2)" if r.legal_others else "")
+                         + f" = {r.legal_total:,}대" + ("" if r.legal_complete else " (일부 용도 미산정)"))
+        else:
+            lines.append("법정 주차대수: 주택형별 전용면적·세대수 입력 필요")
+        if r.planned is not None:
+            tail = ""
+            if r.planned_vs_legal_pct is not None:
+                tail = f", 법정 대비 {r.planned_vs_legal_pct:.0f}%(권장 상한 {r.cap_pct:g}%)"
+            lines.append(f"계획 주차대수: {r.planned:,}대{tail}")
+            if r.planned_vs_demand is not None:
+                if r.planned_vs_demand < 0:
+                    lines.append(f"원단위법 수요 대비 계획 대수가 {-r.planned_vs_demand:,.0f}대 부족")
+                else:
+                    lines.append(f"원단위법 수요 대비 계획 대수가 {r.planned_vs_demand:,.0f}대 여유")
+        else:
+            lines.append("계획 주차대수: 입력 필요")
+        state.put("demand.parking", "\n".join(lines), self.name)
+        state.put("parking.method",
+                  "주차수요예측기법: 원단위법(지침 제15조②). 법정 주차대수는 주택건설기준 등에 관한 규정과 서울 주차장 조례를 적용. "
+                  "유사 건축물 현지조사 1개소 이상과 관련 자료 3개 이상의 비교·분석(제15조①)은 이 도구가 수행하지 않았으므로 작성자 보완 필요.",
+                  self.name)
+        if r.planned is not None and r.legal_total is not None:
+            if r.planned < r.legal_total:
+                state.warn(f"계획 주차대수({r.planned:,}대)가 법정 주차대수({r.legal_total:,}대)에 미달")
+            elif r.cap is not None and r.planned > r.cap:
+                state.warn(f"계획 주차대수({r.planned:,}대)가 법정 대비 권장 상한 {r.cap_pct:g}%({r.cap:,.0f}대)를 초과: 사유 명시 필요(지침 별표 2 8.가⒁)")
+        if r.planned_vs_demand is not None and r.planned_vs_demand < 0:
+            state.warn(f"원단위법 주차수요({r.demand:,.0f}대)가 계획 주차대수({r.planned:,}대)를 초과" + (" — 임시 원단위 기준" if prov else ""))
 
     def _need(self, state: ReportState, key: str) -> None:
         if key not in state.needs_input:

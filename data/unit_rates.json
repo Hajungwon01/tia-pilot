@@ -9,6 +9,11 @@
     "peak_hour": {
       "am": {"ratio_of_daily": 0.09, "in_ratio": 0.30},
       "pm": {"ratio_of_daily": 0.08, "in_ratio": 0.65}
+    },
+    "parking": {
+      "_note": "주차수요 원단위도 임시 플레이스홀더(근거 자료 없음). 지침 제15조①은 유사 건축물 현지조사 1개소 이상과 관련 자료 3개 이상의 비교·분석을 요구하므로 반드시 교체하거나 입력값(parking_demand_per_household)으로 덮어쓸 것.",
+      "demand_per_household": 1.2,
+      "utilization": 1.0
     }
   }
 }

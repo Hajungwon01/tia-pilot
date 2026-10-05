@@ -86,7 +86,7 @@ def test_unknown_rule_name_is_not_silently_passed():
 def test_pipeline_reports_rules_and_scope_lists_annex3_focus_items():
     st = asyncio.run(TIAPipeline().run(ReportState(
         project=ProjectInput(name="t", address="서울 OO동", households=300, gross_floor_area_m2=60000))))
-    assert [r["id"] for r in st.reflection["rules"]] == ["A2-2.3"]
+    assert [r["id"] for r in st.reflection["rules"]] == ["A2-2.3", "A2-8.5"]
     scope = st.sections["intro.scope"]
     assert "별표 3 6. 개별 건축물 준용" in scope
     assert "- 가. " in scope and "- 자. 이용자(인구)의 교통이용 유형 및 행태 분석" in scope

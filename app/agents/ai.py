@@ -39,6 +39,13 @@ class AIAgent(BaseAgent):
         if t:
             lines.append(f"AM 첨두 유입 {t.am_peak.in_trips:.0f}/유출 {t.am_peak.out_trips:.0f}대/시, "
                          f"PM 첨두 유입 {t.pm_peak.in_trips:.0f}/유출 {t.pm_peak.out_trips:.0f}대/시")
+        pk = state.parking
+        if pk:
+            lines.append(f"주차: 원단위법 수요 {pk['demand']:,.0f}대"
+                         + (f"(원단위 {pk['demand_per_household']:g}대/세대, 임시값)" if pk["rate_status"] == "PROVISIONAL" else "")
+                         + (f", 법정 {pk['legal_total']:,}대" if pk["legal_total"] is not None else ", 법정 대수 미산정")
+                         + (f", 계획 {pk['planned']:,}대" if pk["planned"] is not None else ", 계획 대수 미입력")
+                         + (f", 법정 대비 {pk['planned_vs_legal_pct']:.0f}%" if pk["planned_vs_legal_pct"] is not None else ""))
         for n, v in state.los.items():
             lines.append(f"{n}: 평균지체 {v['avg_delay']:.1f}초/대, LOS {v['grade']}")
             for r in v["results"]:

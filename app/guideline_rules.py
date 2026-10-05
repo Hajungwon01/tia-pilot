@@ -36,8 +36,26 @@ def entrance_400(state: ReportState) -> tuple[str, str]:
                 f"별표 2의 2개소·2개 차로 검토 조건에 해당하지 않음{note}")
 
 
+def parking_cap(state: ReportState) -> tuple[str, str]:
+    """계획주차대수가 법정주차대수의 130%(대도시권역)를 넘지 않는지, 법정에 미달하지 않는지(별표 2 8.가⒁)."""
+    r = state.parking or {}
+    legal, planned = r.get("legal_total"), r.get("planned")
+    if legal is None or planned is None:
+        missing = [n for n, v in (("주택형별 전용면적·세대수(법정 대수 산정)", legal), ("계획 주차대수", planned)) if v is None]
+        return UNKNOWN, "판정에 필요한 입력 없음: " + ", ".join(missing)
+    cap, pct = r["cap"], r["cap_pct"]
+    note = "" if r.get("legal_complete") else " (일부 용도 법정 대수 미산정)"
+    if planned < legal:
+        return ATTENTION, f"계획 {planned:,}대가 법정 {legal:,}대에 미달{note}"
+    if planned > cap:
+        return ATTENTION, (f"계획 {planned:,}대가 법정 {legal:,}대의 {planned / legal * 100:.0f}%로 권장 상한 {pct:g}%({cap:,.0f}대) 초과: "
+                           f"초과 사유 명시 필요{note}")
+    return OK, f"계획 {planned:,}대는 법정 {legal:,}대의 {planned / legal * 100:.0f}%로 권장 상한 {pct:g}% 이내{note}"
+
+
 RULES: dict[str, Callable[[ReportState], tuple[str, str]]] = {
     "entrance_400": entrance_400,
+    "parking_cap": parking_cap,
 }
 
 

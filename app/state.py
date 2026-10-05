@@ -66,6 +66,7 @@ class ReportState(BaseModel):
     scope: dict | None = None
     # Data
     trips: TripGenerationResult | None = None
+    parking: dict | None = None  # app.parking.ParkingResult.model_dump()
     los: dict[str, dict] = Field(default_factory=dict)  # 교차로명 -> {results, avg_delay, grade}
     stages: dict[str, dict] = Field(default_factory=dict)  # 교차로명 -> {목표년도 -> {without, with, improved}}
     # Creative

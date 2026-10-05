@@ -154,13 +154,29 @@ def add_byeolji1(doc: Document, state: ReportState) -> None:
             ["첨두시간대", "", f"사업지구: {pk_name}", "", "주변가로:", EMPTY, ""],
         ])
 
+        pk = state.parking
         doc.add_heading("④ 주차수요 원단위", level=3)
-        _table(doc, ["용도구분", "면적(㎡)", "주차원단위(대/㎡)", "이용효율", "주차수요(대)", "원단위 자료출처"],
-               [[EMPTY] * 6])
+        if pk:
+            prov = pk["rate_status"] == "PROVISIONAL"
+            area = pk["total_exclusive_area_m2"]
+            per_m2 = (f"{pk['demand_per_household'] * pk['utilization'] / (area / p.households):.4f}" if area else
+                      f"세대당 {pk['demand_per_household']:g}대")
+            src = "임시값(근거 자료 없음)" if prov else (pk["rate_source"] or BLANK)
+            _para(doc, "※ 면적은 주택 전용면적 합계(㎡)이며, 세대당 원단위에 이용효율을 곱해 대/㎡로 환산했습니다. 복합용도의 다른 용도 주차수요는 포함하지 않았습니다.",
+                  size=8.5, color=(0x70, 0x70, 0x70))
+            _table(doc, ["용도구분", "면적(㎡)", "주차원단위(대/㎡)", "이용효율", "주차수요(대)", "원단위 자료출처"], [[
+                BLANK + " (전용면적 구간)", f"{area:,.0f}" if area else f"{p.households:,}세대", per_m2 + (" (임시)" if prov else ""),
+                f"{pk['utilization']:g}", f"{pk['demand']:,.0f}", src]])
+        else:
+            _table(doc, ["용도구분", "면적(㎡)", "주차원단위(대/㎡)", "이용효율", "주차수요(대)", "원단위 자료출처"], [[EMPTY] * 6])
         doc.add_heading("⑤ 주차수요 예측결과 및 확보 내역", level=3)
+        demand = f"{pk['demand']:,.0f}" if pk else EMPTY
+        legal = f"{pk['legal_total']:,}" if pk and pk["legal_total"] is not None else EMPTY
+        planned = f"{pk['planned']:,}" if pk and pk["planned"] is not None else EMPTY
+        _para(doc, "※ 단기·장기 동일 원단위를 적용해 같은 값입니다. P 요소법·누적 주차법은 계산하지 않았습니다.", size=8.5, color=(0x70, 0x70, 0x70))
         _table(doc, ["분석방법", "단기", "장기", "구분", "주차대수"], [
-            ["원단위법", EMPTY, EMPTY, "법적대수", EMPTY], ["P 요소법", EMPTY, EMPTY, "건축계획", EMPTY],
-            ["누적 주차법", EMPTY, EMPTY, "분석대수", EMPTY], ["기타", EMPTY, EMPTY, "적용방법", EMPTY],
+            ["원단위법", demand, demand, "법적대수", legal], ["P 요소법", EMPTY, EMPTY, "건축계획", planned],
+            ["누적 주차법", EMPTY, EMPTY, "분석대수", demand], ["기타", EMPTY, EMPTY, "적용방법", "원단위법(지침 제15조②)" if pk else EMPTY],
         ])
 
     doc.add_heading("3) 교통영향평가 내용 (정량분석표)", level=2)

@@ -50,6 +50,10 @@ def build_facts(state: ReportState) -> FactTable:
         for pk in (t.am_peak, t.pm_peak):
             f.add(pk.in_trips, pk.out_trips, pk.total)
         f.add(t.daily_vehicle_trips, t.daily_person_trips)
+    if state.parking:
+        pk = state.parking
+        f.add(pk.get("demand"), pk.get("legal_apartment"), pk.get("legal_total"), pk.get("planned"), pk.get("cap"),
+              pk.get("cap_pct"), pk.get("planned_vs_legal_pct"), pk.get("demand_per_household"), pk.get("legal_others_total"))
     vcs = []
     for v in state.los.values():
         f.add(v["avg_delay"])

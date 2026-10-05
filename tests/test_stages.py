@@ -79,7 +79,7 @@ def test_data_agent_fills_three_stage_sections():
     assert set(st.stages["A교차로"]) == {1, 3}
     assert "demand.without_project" in st.sections and "demand.los_three_stage" in st.sections
     assert "미시행" in st.sections["demand.los_three_stage"] and "개선 후" in st.sections["demand.los_three_stage"]
-    assert st.needs_input == []
+    assert set(st.needs_input) <= {"project.unit_types", "project.planned_parking_spaces"}  # 주차 입력만 남음
 
 
 def test_missing_growth_and_share_are_flagged_not_silently_assumed():

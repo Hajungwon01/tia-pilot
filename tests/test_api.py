@@ -9,6 +9,7 @@ from app import auth, main
 from app.config import get_settings
 from app.storage import Database, LlmRunLog, SqliteJobStore
 
+PARKING_INPUTS = {"project.unit_types", "project.planned_parking_spaces"}
 PAYLOAD = {
     "project": {"name": "테스트 단지", "address": "서울 OO동", "land_use": "apartment", "households": 1500,
                 "gross_floor_area_m2": 180000, "floors": 25},
@@ -60,7 +61,7 @@ def test_analyze_returns_summary_with_three_stages(client):
     j = r.json()
     assert j["llm"]["used"] is False and j["eligibility"]["eligible"] is True
     assert set(j["stages"]["A교차로"]) == {"1", "3"}
-    assert j["reflection"]["passed"] > 0 and j["needs_input"] == []
+    assert j["reflection"]["passed"] > 0 and {n["key"] for n in j["needs_input"]} <= PARKING_INPUTS  # 주차 입력만 남음
     assert j["download_url"].endswith(".docx")
 
 

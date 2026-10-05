@@ -40,12 +40,17 @@ class AnalyzeRequest(BaseModel):
 
 
 MAX_OTHER_USES = 10
+MAX_UNIT_TYPES = 30
 
 
 def validate_project(p) -> None:
     """복합용도 용도 key·중복·개수 검사(알 수 없는 용도는 판정 근거가 없으므로 거부)."""
     if len(p.other_uses) > MAX_OTHER_USES:
         raise ServiceError(422, f"복합용도는 최대 {MAX_OTHER_USES}개까지 입력할 수 있습니다.")
+    if len(p.unit_types) > MAX_UNIT_TYPES:
+        raise ServiceError(422, f"주택형은 최대 {MAX_UNIT_TYPES}종까지 입력할 수 있습니다.")
+    if p.unit_types and sum(u.households for u in p.unit_types) != p.households:
+        raise ServiceError(422, f"주택형별 세대수 합계({sum(u.households for u in p.unit_types):,})가 세대수({p.households:,})와 다릅니다.")
     table = use_table()
     seen = set()
     for u in p.other_uses:
@@ -138,6 +143,7 @@ def summarize(state: ReportState, job_id: str) -> dict:
         "eligibility": (state.scope or {}).get("eligibility"),
         "scope": {k: v for k, v in (state.scope or {}).items() if k != "eligibility"},
         "trips": state.trips.model_dump(mode="json") if state.trips else None,
+        "parking": state.parking,
         "stages": {n: {str(y): st for y, st in years.items()} for n, years in state.stages.items()},
         "los": state.los,
         "reflection": {"passed": r.get("passed"), "auto_total": r.get("auto_total"),
