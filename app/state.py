@@ -71,6 +71,7 @@ class ReportState(BaseModel):
     sections: dict[str, str] = Field(default_factory=dict)
     section_owner: dict[str, str] = Field(default_factory=dict)
 
+    llm_used: bool = False  # 이번 분석이 실제 LLM으로 문장을 썼는지(False면 mock)
     warnings: list[str] = Field(default_factory=list)
     needs_input: list[str] = Field(default_factory=list)  # 사용자 입력이 필요한 key
     document: str = ""

@@ -8,12 +8,13 @@ SUPPORTED = ("anthropic", "openai")
 
 
 class LLMClient:
-    def __init__(self) -> None:
+    def __init__(self, force_mock: bool = False) -> None:
+        """force_mock=True면 키가 설정돼 있어도 외부 호출 없이 mock으로 동작한다(웹 기본값)."""
         s = get_settings()
         if s.llm_provider not in SUPPORTED:
             raise ValueError(f"지원하지 않는 LLM_PROVIDER: {s.llm_provider!r} (가능: {', '.join(SUPPORTED)})")
         self.provider = s.llm_provider
-        self.mock_mode = s.llm_mock_mode
+        self.mock_mode = force_mock or s.llm_mock_mode
         self.model = s.model
         self._client = None
         if not self.mock_mode:

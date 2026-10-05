@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     llm_model: str = ""  # 비우면 제공자별 기본 모델
     max_reflection_retries: int = 1
+    # 웹 서비스 비용 안전장치: 실제 LLM을 쓰는 분석에만 적용한다.
+    app_access_code: str = ""  # 비어 있지 않으면 실제 LLM 사용 시 이 코드를 요구
+    max_live_runs_per_hour: int = 10  # 실제 LLM 분석 시간당 최대 횟수(서버 전체)
+    max_intersections: int = 12  # 요청당 교차로 수 상한
+    max_approaches: int = 8  # 교차로당 접근로 수 상한
 
     @property
     def api_key(self) -> str:

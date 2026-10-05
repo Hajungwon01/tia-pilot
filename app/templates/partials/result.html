@@ -1,0 +1,95 @@
+<div class="card">
+  <div class="resulthead">
+    <h2>분석 결과</h2>
+    <a class="btn primary" href="{{ s.download_url }}">Word(.docx) 초안 내려받기</a>
+  </div>
+  <p class="muted">{{ disclaimer }}</p>
+  {% if s.llm.used %}
+    <p><span class="badge ok">실제 LLM 사용</span> AI 문단은 계산 결과와 대조 검증을 거쳤지만, 사람이 반드시 읽고 검토해야 합니다.</p>
+  {% else %}
+    <p><span class="badge warn">LLM 미사용(mock)</span> 문제점·개선방안 문단은 자리표시로 남습니다. 폼에서 “실제 LLM 사용”을 켜면 문장이 작성됩니다.</p>
+  {% endif %}
+</div>
+
+{% if s.warnings %}
+<div class="card warnbox">
+  <h3>주의</h3>
+  <ul>{% for w in s.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if s.needs_input %}
+<div class="card">
+  <h3>입력이 더 필요한 항목</h3>
+  <ul>{% for n in s.needs_input %}<li>{{ n.label }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>평가 대상 판정·범위</h3>
+  {% if s.eligibility %}
+    {% set e = s.eligibility %}
+    <table>
+      <tr><th>건축 연면적</th><td>{% if e.gross_floor_area_m2 %}{{ "{:,.0f}".format(e.gross_floor_area_m2) }}㎡{% else %}미입력{% endif %}</td></tr>
+      <tr><th>서울시 기준(아파트)</th><td>{{ "{:,.0f}".format(e.threshold_m2) }}㎡ 이상</td></tr>
+      <tr><th>대상 여부</th><td>
+        {% if e.eligible is none %}판정 불가(연면적 필요)
+        {% elif e.eligible %}<b>대상</b> (기준의 {{ "%.1f"|format(e.multiple) }}배)
+        {% else %}<b>대상 아님</b> (기준 미만)
+        {% endif %}</td></tr>
+      <tr><th>시간적 범위</th><td>준공 후 {{ s.scope.target_years | join("년, ") }}년</td></tr>
+      <tr><th>공간적 범위</th><td>반경 {{ s.scope.radius_km }}km, 교차로 {{ s.scope.min_intersections }}개 이상{% if s.scope.spatial_provisional %} <span class="badge warn">임시</span>{% endif %}</td></tr>
+    </table>
+    <p class="muted small">근거: {{ e.basis }}</p>
+  {% endif %}
+</div>
+
+{% if s.trips %}
+<div class="card">
+  <h3>사업 유발교통량 (승용차)</h3>
+  <table>
+    <tr><th></th><th>유입(대/시)</th><th>유출(대/시)</th><th>합계</th></tr>
+    <tr><td>AM 첨두</td><td>{{ "%.0f"|format(s.trips.am_peak.in_trips) }}</td><td>{{ "%.0f"|format(s.trips.am_peak.out_trips) }}</td><td>{{ "%.0f"|format(s.trips.am_peak.in_trips + s.trips.am_peak.out_trips) }}</td></tr>
+    <tr><td>PM 첨두</td><td>{{ "%.0f"|format(s.trips.pm_peak.in_trips) }}</td><td>{{ "%.0f"|format(s.trips.pm_peak.out_trips) }}</td><td>{{ "%.0f"|format(s.trips.pm_peak.in_trips + s.trips.pm_peak.out_trips) }}</td></tr>
+  </table>
+  <p class="muted small">일 승용차 유발 {{ "%.0f"|format(s.trips.daily_vehicle_trips) }}대 ·
+    원단위 상태: {{ s.trips.rates_status }}{% if s.trips.rates_status == "PROVISIONAL" %} <span class="badge warn">임시값 — 수치는 잠정</span>{% endif %}</p>
+</div>
+{% endif %}
+
+{% if s.stages %}
+<div class="card">
+  <h3>3단계 서비스수준 (사업 미시행 / 시행 / 개선 후)</h3>
+  <p class="muted small">평균 제어지체(초/대)와 LOS — 도로용량편람(2013) 기준. 개선 후는 신호주기 고정·녹색시간 재배분 간이 계산.</p>
+  <div class="scroll"><table>
+    <tr><th>교차로</th><th>목표년도</th><th>미시행</th><th>시행</th><th>개선 후</th><th>개선 효과</th></tr>
+    {% for name, years in s.stages.items() %}{% for y, st in years.items() %}
+    <tr>
+      <td>{{ name }}</td><td>준공 후 {{ y }}년</td>
+      <td>{{ "%.1f"|format(st.without.avg_delay) }} ({{ st.without.grade }})</td>
+      <td>{{ "%.1f"|format(st['with'].avg_delay) }} ({{ st['with'].grade }})</td>
+      <td>{{ "%.1f"|format(st.improved.avg_delay) }} ({{ st.improved.grade }})</td>
+      <td>{{ "%.1f"|format(st.delay_reduction) }}초 감소</td>
+    </tr>
+    {% endfor %}{% endfor %}
+  </table></div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>지침 체크리스트 점검 (v0.1)</h3>
+  <p><b>{{ s.reflection.passed }} / {{ s.reflection.auto_total }}</b> 항목 충족 · 사람이 직접 확인할 항목 {{ s.reflection.manual | length }}건</p>
+  {% if s.reflection.flagged %}
+  <p><span class="badge bad">검토 필요</span> 계산 결과와 불일치 가능한 문단</p>
+  <ul>{% for k, issues in s.reflection.flagged.items() %}<li><code>{{ k }}</code>: {{ issues | join("; ") }}</li>{% endfor %}</ul>
+  {% endif %}
+  <details>
+    <summary>아직 충족하지 못한 항목 {{ s.reflection.missing | length }}개</summary>
+    <ul class="small">{% for k in s.reflection.missing %}<li><code>{{ k }}</code></li>{% endfor %}</ul>
+  </details>
+</div>
+
+<details class="card">
+  <summary>문서 미리보기(마크다운)</summary>
+  <pre class="doc">{{ s.document_markdown }}</pre>
+</details>

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>교통영향평가 초안 자동화</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2230; --muted:#667085; --line:#d8dce5; --accent:#2457d6;
+          --ok:#1a7f4b; --warn:#a15c00; --bad:#b42318; --warnbg:#fff7e6; --errbg:#fef3f2; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#12151c; --card:#1b2029; --ink:#e8ebf2; --muted:#9aa3b5; --line:#2e3646; --accent:#7ea2ff;
+            --ok:#5fd09a; --warn:#f0b35a; --bad:#ff8a80; --warnbg:#2a2415; --errbg:#2d1a18; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif; }
+  .banner { background:#7a1f1f; color:#fff; padding:8px 16px; font-size:13px; text-align:center; }
+  main { max-width:960px; margin:0 auto; padding:16px; }
+  h1 { font-size:22px; margin:8px 0 2px; } h2 { font-size:18px; margin:0 0 8px; } h3 { font-size:16px; margin:0 0 8px; }
+  .muted { color:var(--muted); } .small { font-size:13px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin:14px 0; }
+  .err { background:var(--errbg); border-color:var(--bad); } .warnbox { background:var(--warnbg); border-color:var(--warn); }
+  fieldset { border:1px solid var(--line); border-radius:8px; margin:10px 0; padding:10px 12px; }
+  legend { font-weight:600; padding:0 6px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:2px; }
+  input, select { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); font:inherit; }
+  input:focus, select:focus, button:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); }
+  .row { display:grid; gap:8px; grid-template-columns:repeat(5, 1fr) auto; align-items:end; margin:6px 0; }
+  .btn { padding:8px 14px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); cursor:pointer; font:inherit; text-decoration:none; display:inline-block; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn.small { padding:4px 10px; font-size:13px; } .btn:disabled { opacity:.6; cursor:wait; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .badge { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; border:1px solid currentColor; }
+  .badge.ok { color:var(--ok); } .badge.warn { color:var(--warn); } .badge.bad { color:var(--bad); }
+  table { border-collapse:collapse; width:100%; font-size:14px; } th, td { border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
+  th { background:rgba(127,127,127,.12); font-weight:600; }
+  .scroll { overflow-x:auto; } .resulthead { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  pre.doc { white-space:pre-wrap; font-size:12.5px; max-height:480px; overflow:auto; }
+  code { font-size:12.5px; }
+  .staff { display:grid; gap:8px; grid-template-columns:repeat(5, 1fr) auto; align-items:end; margin:6px 0; }
+  .roles { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:4px 12px; font-size:13px; }
+  .roles label { display:inline-flex; gap:4px; align-items:center; color:var(--ink); margin:0; }
+  .roles input { width:auto; }
+  @media (max-width: 720px) { .row, .staff { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="banner" role="note">{{ disclaimer }}</div>
+<main>
+  <h1>교통영향평가 초안 자동화</h1>
+  <p class="muted">서울시 공동주택(아파트) 교통영향평가서 <b>초안</b>을 만듭니다. 지침 기준표·계산식은 원문을 확인해 반영했고, 원단위는 현재 <b>임시값</b>입니다.</p>
+
+  <form id="form" class="card" autocomplete="off">
+    <h2>1. 사업 개요</h2>
+    <div class="grid">
+      <div><label for="name">사업명 *</label><input id="name" required maxlength="100"></div>
+      <div><label for="address">위치(주소) *</label><input id="address" required maxlength="200"></div>
+      <div><label for="households">세대수 *</label><input id="households" type="number" min="1" step="1" required></div>
+      <div><label for="gfa">건축 연면적(㎡) — 평가 대상 판정 기준</label><input id="gfa" type="number" min="1" step="any" placeholder="예: 180000"></div>
+      <div><label for="floors">최고 층수</label><input id="floors" type="number" min="1" step="1"></div>
+    </div>
+
+    <h2 style="margin-top:18px">2. 분석 조건</h2>
+    <div class="grid">
+      <div><label for="growth">배경교통량 연 증가율(%)</label><input id="growth" type="number" step="any" min="-20" max="50" placeholder="예: 2"></div>
+    </div>
+    <p class="muted small">비워 두면 0%로 가정하지 않고 “입력 필요”로 표시합니다(지침 제11조②).</p>
+
+    <h2 style="margin-top:18px">3. 분석 대상 교차로 <span class="muted small">(현장조사 교통량 — 없으면 비워도 됩니다)</span></h2>
+    <div id="intersections"></div>
+    <button type="button" class="btn small" id="addIx">+ 교차로 추가</button>
+
+    <details style="margin-top:18px">
+      <summary><b>4. 평가대행업체·참여인력 (선택)</b> — 표지·제출문·끝문에 들어갑니다. 비워 두면 [기재 필요]로 남습니다.</summary>
+      <div class="grid" style="margin-top:10px">
+        <div><label for="ag_name">평가대행업체</label><input id="ag_name"></div>
+        <div><label for="ag_regno">등록번호</label><input id="ag_regno"></div>
+        <div><label for="ag_regdate">등록일</label><input id="ag_regdate" placeholder="YYYY-MM-DD"></div>
+        <div><label for="ag_lead">책임자(평가대행자)</label><input id="ag_lead"></div>
+        <div><label for="ag_submit">제출일</label><input id="ag_submit" placeholder="YYYY-MM-DD"></div>
+        <div><label for="ag_period">용역 수행기간</label><input id="ag_period"></div>
+        <div><label for="ag_printer">인쇄업체</label><input id="ag_printer"></div>
+        <div><label for="ag_concept">구상용역 수행업체</label><input id="ag_concept"></div>
+        <div><label for="ag_addr">업체 주소</label><input id="ag_addr"></div>
+        <div><label for="ag_phone">업체 전화</label><input id="ag_phone"></div>
+        <div><label for="cl_name">사업자</label><input id="cl_name"></div>
+        <div><label for="cl_addr">사업자 주소</label><input id="cl_addr"></div>
+        <div><label for="cl_phone">사업자 전화</label><input id="cl_phone"></div>
+      </div>
+      <div style="margin-top:10px">
+        <label style="display:inline-flex;gap:6px;align-items:center;color:var(--ink)"><input type="checkbox" id="ag_cost" style="width:auto"> 대행비용 산정근거 첨부</label>
+        <label style="display:inline-flex;gap:6px;align-items:center;color:var(--ink);margin-left:14px"><input type="checkbox" id="ag_contract" style="width:auto"> 용역계약서 사본 첨부</label>
+      </div>
+      <h3 style="margin-top:14px">참여전문인력</h3>
+      <div id="staff"></div>
+      <button type="button" class="btn small" id="addStaff">+ 인력 추가</button>
+    </details>
+
+    <fieldset>
+      <legend>문장 작성 방식</legend>
+      <label style="display:flex;gap:8px;align-items:flex-start;color:var(--ink);font-size:14px">
+        <input type="checkbox" id="use_llm" style="width:auto;margin-top:4px" {% if not llm_available %}disabled{% endif %}>
+        <span>실제 LLM으로 문제점·개선방안 문단 작성
+          {% if llm_available %}<span class="muted small">({{ llm_provider }} · {{ llm_model }}) — 호출 5회 이상, 비용이 발생합니다.</span>
+          {% else %}<span class="muted small">서버에 LLM 키가 설정되지 않아 사용할 수 없습니다(해당 문단은 자리표시로 남습니다).</span>{% endif %}</span>
+      </label>
+      {% if needs_code %}
+      <div style="margin-top:8px;max-width:260px"><label for="access_code">접근 코드(실제 LLM 사용 시 필요)</label><input id="access_code" type="password" autocomplete="off"></div>
+      {% endif %}
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit" class="btn primary" id="submit">분석 실행</button>
+      <button type="button" class="btn" id="sample">샘플 입력 채우기</button>
+    </div>
+  </form>
+
+  <div id="result" aria-live="polite"></div>
+</main>
+
+<script>
+const ROLES = {{ roles | tojson }};
+const $ = (id) => document.getElementById(id);
+
+function ixHtml() {
+  return `
+  <fieldset class="ix">
+    <legend>교차로</legend>
+    <div class="grid">
+      <div><label>교차로명 *</label><input class="ix-name" maxlength="60"></div>
+      <div><label>신호주기(초) *</label><input class="ix-cycle" type="number" min="1" step="any"></div>
+      <div><label>교통량 조사 첨두시</label><select class="ix-peak"><option value="pm">PM 첨두</option><option value="am">AM 첨두</option></select></div>
+    </div>
+    <div class="small muted" style="margin-top:8px">접근로(차로군)별 — 교통량·포화교통류율은 현장조사/편람 값, 사업 배분율은 해당 접근로에 실리는 사업 유발 첨두교통량 비율</div>
+    <div class="aps"></div>
+    <div class="actions">
+      <button type="button" class="btn small add-ap">+ 접근로 추가</button>
+      <button type="button" class="btn small del-ix">교차로 삭제</button>
+    </div>
+  </fieldset>`;
+}
+function apHtml() {
+  return `
+  <div class="row ap">
+    <div><label>접근로명</label><input class="ap-name" maxlength="30"></div>
+    <div><label>교통량(대/시)</label><input class="ap-vol" type="number" min="0" step="any"></div>
+    <div><label>포화교통류율(대/시)</label><input class="ap-sat" type="number" min="1" step="any" value="1800"></div>
+    <div><label>녹색시간(초)</label><input class="ap-green" type="number" min="1" step="any"></div>
+    <div><label>사업 배분율(%)</label><input class="ap-share" type="number" min="0" max="100" step="any" value="0"></div>
+    <button type="button" class="btn small del-ap" aria-label="접근로 삭제">삭제</button>
+  </div>`;
+}
+function staffHtml() {
+  const roles = ROLES.map(r => `<label><input type="checkbox" class="st-role" value="${r}"> ${r}</label>`).join("");
+  return `
+  <div class="staff st">
+    <div><label>성명</label><input class="st-name"></div>
+    <div><label>소속</label><input class="st-aff"></div>
+    <div><label>직책</label><input class="st-pos"></div>
+    <div><label>근무기간</label><input class="st-per"></div>
+    <div><label>자격명·번호</label><input class="st-qual"></div>
+    <button type="button" class="btn small del-st">삭제</button>
+    <div class="roles">${roles}
+      <label><input type="checkbox" class="st-reg" checked> 등록 기술인력</label></div>
+  </div>`;
+}
+function addIx(data) {
+  const wrap = document.createElement("div"); wrap.innerHTML = ixHtml();
+  const el = wrap.firstElementChild; $("intersections").appendChild(el);
+  el.querySelector(".add-ap").onclick = () => addAp(el);
+  el.querySelector(".del-ix").onclick = () => el.remove();
+  if (data) {
+    el.querySelector(".ix-name").value = data.name; el.querySelector(".ix-cycle").value = data.cycle;
+    el.querySelector(".ix-peak").value = data.peak; data.aps.forEach(a => addAp(el, a));
+  } else { addAp(el); }
+  return el;
+}
+function addAp(ix, d) {
+  const wrap = document.createElement("div"); wrap.innerHTML = apHtml();
+  const el = wrap.firstElementChild; ix.querySelector(".aps").appendChild(el);
+  el.querySelector(".del-ap").onclick = () => el.remove();
+  if (d) { el.querySelector(".ap-name").value = d.name; el.querySelector(".ap-vol").value = d.vol;
+    el.querySelector(".ap-sat").value = d.sat; el.querySelector(".ap-green").value = d.green; el.querySelector(".ap-share").value = d.share; }
+}
+function addStaff() {
+  const wrap = document.createElement("div"); wrap.innerHTML = staffHtml();
+  const el = wrap.firstElementChild; $("staff").appendChild(el);
+  el.querySelector(".del-st").onclick = () => el.remove();
+}
+$("addIx").onclick = () => addIx();
+$("addStaff").onclick = addStaff;
+
+const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+
+function buildPayload() {
+  const p = {
+    project: { name: $("name").value.trim(), address: $("address").value.trim(), land_use: "apartment",
+      households: num($("households").value), gross_floor_area_m2: num($("gfa").value), floors: num($("floors").value) },
+    background_growth_rate: num($("growth").value) === null ? null : num($("growth").value) / 100,
+    intersections: [],
+    agency: null,
+    use_llm: $("use_llm").checked,
+    access_code: $("access_code") ? $("access_code").value : "",
+  };
+  document.querySelectorAll(".ix").forEach(ix => {
+    const name = ix.querySelector(".ix-name").value.trim();
+    const aps = [...ix.querySelectorAll(".ap")].map(a => ({
+      name: a.querySelector(".ap-name").value.trim(), volume: num(a.querySelector(".ap-vol").value),
+      saturation_flow: num(a.querySelector(".ap-sat").value), green_time: num(a.querySelector(".ap-green").value),
+      project_share: (num(a.querySelector(".ap-share").value) || 0) / 100,
+    })).filter(a => a.name || a.volume !== null || a.green_time !== null);
+    if (name || aps.length) p.intersections.push({ name, cycle: num(ix.querySelector(".ix-cycle").value),
+      peak: ix.querySelector(".ix-peak").value, approaches: aps });
+  });
+  const ag = { agency_name: $("ag_name").value, registration_no: $("ag_regno").value, registration_date: $("ag_regdate").value,
+    lead_name: $("ag_lead").value, submission_date: $("ag_submit").value, service_period: $("ag_period").value,
+    printer: $("ag_printer").value, concept_design_firm: $("ag_concept").value, agency_address: $("ag_addr").value,
+    agency_phone: $("ag_phone").value, client_name: $("cl_name").value, client_address: $("cl_addr").value,
+    client_phone: $("cl_phone").value, cost_basis_attached: $("ag_cost").checked, contract_copy_attached: $("ag_contract").checked,
+    staff: [...document.querySelectorAll(".st")].map(s => ({ name: s.querySelector(".st-name").value.trim(),
+      affiliation: s.querySelector(".st-aff").value, position: s.querySelector(".st-pos").value,
+      period: s.querySelector(".st-per").value, qualification: s.querySelector(".st-qual").value,
+      roles: [...s.querySelectorAll(".st-role:checked")].map(c => c.value), registered: s.querySelector(".st-reg").checked }))
+      .filter(s => s.name) };
+  const anyText = Object.entries(ag).some(([k, v]) => (typeof v === "string" && v.trim()) || (k === "staff" && v.length) || v === true);
+  if (anyText) p.agency = ag;
+  return p;
+}
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = $("submit"), out = $("result");
+  btn.disabled = true; btn.textContent = "분석 중…"; out.innerHTML = "";
+  try {
+    const res = await fetch("/ui/analyze", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildPayload()) });
+    out.innerHTML = await res.text();
+    out.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    out.innerHTML = '<div class="card err" role="alert"><h2>서버에 연결할 수 없습니다</h2><p>잠시 후 다시 시도하세요.</p></div>';
+  } finally { btn.disabled = false; btn.textContent = "분석 실행"; }
+});
+
+$("sample").onclick = () => {
+  $("name").value = "샘플 단지"; $("address").value = "서울특별시 OO구 OO동"; $("households").value = 1500;
+  $("gfa").value = 180000; $("floors").value = 25; $("growth").value = 2;
+  $("intersections").innerHTML = "";
+  addIx({ name: "A교차로", cycle: 120, peak: "pm", aps: [
+    { name: "N", vol: 400, sat: 1800, green: 40, share: 40 }, { name: "E", vol: 500, sat: 1800, green: 40, share: 10 } ] });
+};
+addIx();
+</script>
+</body>
+</html>

@@ -17,6 +17,14 @@ ProjectInput(+사용자 실측 입력)
 - 코드: [app/pipeline.py](app/pipeline.py), 에이전트: [app/agents/](app/agents/), 공유 상태: [app/state.py](app/state.py)
 - 모든 에이전트는 `run(state) -> state`. 공유 상태(`ReportState`)에 자기 몫만 채운다.
 
+## 웹/API 계층
+
+`app/main.py`(라우트) → `app/service.py`(요청 검증·비용 안전장치·작업 저장소·결과 요약) → `TIAPipeline`. 폼은 `app/templates/`.
+- 실제 LLM은 요청에서 명시(`use_llm`)해야만 쓰고, 서버 키 유무·접근 코드(`APP_ACCESS_CODE`)·시간당 횟수 제한을 통과해야 한다.
+- 입력 검증 실패는 422(이유 포함), LLM 오류는 502(상세는 서버 로그에만), 만료된 결과는 404.
+- 작업 저장소는 프로세스 메모리(최대 100건·1시간). 재시작·다중 프로세스 배포 시 사라지므로 Postgres 이전이 필요(TIA-45).
+- 인증은 아직 없다(TIA-83). 배포 전 접근 코드 설정은 필수.
+
 ## 에이전트별 역할과 LLM 사용 여부
 
 | 에이전트 | 하는 일 | LLM |
