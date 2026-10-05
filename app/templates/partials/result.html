@@ -76,6 +76,20 @@
 </div>
 {% endif %}
 
+{% for name, v in s.los.items() if v.engine == "hcm_detailed" %}
+<details class="card">
+  <summary><b>{{ name }}</b> 차로군별 분석(도로용량편람) — 교차로 평균지체 {{ "%.1f"|format(v.avg_delay) }}초/대, LOS {{ v.grade }}{% if v.critical_vc %} · 임계 v/c {{ "%.2f"|format(v.critical_vc) }}{% endif %}</summary>
+  <div class="scroll"><table>
+    <tr><th>접근로·차로군</th><th>현시</th><th>차로수</th><th>교통량(vph)</th><th>포화교통류율(vphg)</th><th>V/S</th><th>용량(vph)</th><th>v/c</th><th>지체(초/대)</th><th>LOS</th></tr>
+    {% for r in v.results %}
+    <tr><td>{{ r.approach }}</td><td>{{ r.phase }}</td><td>{{ "%.0f"|format(r.lanes) }}</td><td>{{ "%.0f"|format(r.volume) }}</td>
+      <td>{{ "%.0f"|format(r.saturation) }}</td><td>{{ "%.3f"|format(r.y) }}</td><td>{{ "%.0f"|format(r.capacity) }}</td>
+      <td>{{ "%.2f"|format(r.vc_ratio) }}</td><td>{{ "%.1f"|format(r.delay) }}</td><td>{{ r.los }}</td></tr>
+    {% endfor %}
+  </table></div>
+</details>
+{% endfor %}
+
 <div class="card">
   <h3>지침 체크리스트 점검 (v0.1)</h3>
   <p><b>{{ s.reflection.passed }} / {{ s.reflection.auto_total }}</b> 항목 충족 · 사람이 직접 확인할 항목 {{ s.reflection.manual | length }}건</p>

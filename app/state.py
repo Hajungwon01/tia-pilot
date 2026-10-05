@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from .hcm_signal import DetailedIntersection
 from .schemas import Approach, IntersectionResult, ProjectInput, TripGenerationResult
 
 
@@ -57,6 +58,8 @@ class ReportState(BaseModel):
     project: ProjectInput
     agency: AgencyInfo | None = None  # 표지·제출문·끝문에 쓰는 업체·인력 정보(입력)
     intersections: list[IntersectionInput] = Field(default_factory=list)  # 사용자 입력
+    # 편람 운영분석(차로군 분류·보정계수·연동·초기대기) 입력. 간이 입력(intersections)과 이름이 겹치면 안 된다.
+    detailed_intersections: list[DetailedIntersection] = Field(default_factory=list)
     background_growth_rate: float | None = None  # 사업 미시행 시 배경교통량 연 증가율(예: 0.01 = 1%)
 
     # Planning

@@ -129,6 +129,11 @@ class DetailedApproach(BaseModel):
     v_right: float = Field(default=0, ge=0)
     u_turn: float = Field(default=0, ge=0)  # U턴 교통량(vph)
     opposing_through: float = Field(default=0, ge=0)  # 보정 대향직진 교통량 Vo (비보호 좌회전에만 사용)
+    opposing: str | None = None  # 맞은편 접근로 이름. 지정하면 그 접근로의 보정 직진 교통량을 Vo로 자동 사용
+    # 사업 유발 첨두교통량(승용차 유입+유출 합)이 이 접근로의 각 이동류에 실리는 비율 (3단계 분석의 '시행 시')
+    project_share_left: float = Field(default=0, ge=0, le=1)
+    project_share_through: float = Field(default=0, ge=0, le=1)
+    project_share_right: float = Field(default=0, ge=0, le=1)
     left_radius_m: float = Field(default=25, gt=0)
     right_channelized: bool = False  # 우회전 교통섬(도류화) 유무
     lane_width_m: float = Field(default=3.0, gt=0)
@@ -183,6 +188,11 @@ class DetailedIntersection(BaseModel):
         names = [a.name for a in self.approaches]
         if len(set(names)) != len(names):
             raise ValueError(f"{self.name}: 접근로 이름이 중복됩니다.")
+        for a in self.approaches:
+            if a.opposing is not None and a.opposing not in names:
+                raise ValueError(f"{self.name} {a.name}: 맞은편 접근로 '{a.opposing}'가 없습니다.")
+            if a.opposing == a.name:
+                raise ValueError(f"{self.name} {a.name}: 자기 자신을 맞은편 접근로로 지정할 수 없습니다.")
         return self
 
 
@@ -272,6 +282,23 @@ def _delay_components(V: float, S: float, g: float, G: float, C: float, Qb: floa
     return {"c": c, "x": X, "y": y, "d1": d1, "d2": d2, "d3": d3, "delay": d1 * pf + d2 + d3}
 
 
+def corrected_volumes(a: DetailedApproach, phf: float) -> dict:
+    """교통량 보정: PHF(식 8-1), 직진 차로이용률 FU(표 8-5), 우회전 RTOR FR(표 8-6, 식 8-3). 단위 vph."""
+    topo, case = a.topology, (a.left_case if a.topology in ("four_way", "t_no_right") else 1)
+    VL_raw = a.v_left if topo in ("four_way", "t_no_right", "y_dedicated") else 0.0
+    VR_raw = a.v_right if topo in ("four_way", "t_no_left", "y_dedicated") else 0.0
+    VTh_raw = a.v_through if topo != "y_dedicated" else 0.0
+    shared_left = topo in ("four_way", "t_no_right") and case in (4, 6)
+    if topo == "y_dedicated":
+        n_th_only = 1
+    else:
+        n_th_only = max(1, a.lanes - (1 if (shared_left and VL_raw > 0) else 0) - (1 if VR_raw > 0 else 0))
+    VTh_pk = VTh_raw / phf
+    FU = fu_factor(n_th_only, VTh_pk / n_th_only) if VTh_raw > 0 else 1.0
+    FR = 0.4 if (topo == "four_way" and a.right_channelized) else 0.5
+    return {"VL": VL_raw / phf, "VTh": VTh_pk * FU, "VR": VR_raw / phf * FR, "FU": FU, "FR": FR}
+
+
 def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachResult:
     C, phf = ix.cycle, ix.phf
     main_phase = a.phase
@@ -285,24 +312,22 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
     case = a.left_case if topo in ("four_way", "t_no_right") else 1
     VL_raw = a.v_left if topo in ("four_way", "t_no_right", "y_dedicated") else 0.0
     VR_raw = a.v_right if topo in ("four_way", "t_no_left", "y_dedicated") else 0.0
-    VTh_raw = a.v_through if topo != "y_dedicated" else 0.0
     dedicated_left = (topo == "four_way" and case in (1, 2, 3)) or (topo == "t_no_right" and case in (1, 2, 3))
     shared_left = (topo in ("four_way", "t_no_right")) and case in (4, 6)
     N = a.lanes
     has_left, has_right = VL_raw > 0, VR_raw > 0
 
     # 교통량 보정 (PHF, 차로이용률, RTOR)
-    VL = VL_raw / phf
-    if topo == "y_dedicated":
-        n_th_only = 1
-    else:
-        n_th_only = max(1, N - (1 if (shared_left and has_left) else 0) - (1 if has_right else 0))
-    VTh_pk = VTh_raw / phf
-    FU = fu_factor(n_th_only, VTh_pk / n_th_only) if VTh_raw > 0 else 1.0
-    VTh = VTh_pk * FU
-    FR = 0.4 if (topo == "four_way" and a.right_channelized) else 0.5
-    VR = VR_raw / phf * FR
+    mv = corrected_volumes(a, phf)
+    VL, VTh, VR, FU, FR = mv["VL"], mv["VTh"], mv["VR"], mv["FU"], mv["FR"]
     detail.update(VL=VL, VTh=VTh, VR=VR, FU=FU, FR=FR)
+
+    # 비보호 좌회전의 대향 직진 교통량 Vo: 맞은편 접근로가 지정되면 그 보정 직진 교통량을 쓴다
+    Vo = a.opposing_through
+    if a.opposing is not None:
+        opp = next(x for x in ix.approaches if x.name == a.opposing)
+        Vo = corrected_volumes(opp, phf)["VTh"]
+    detail["Vo"] = Vo
 
     # 노변마찰 / 횡단보행자
     Ldw = 0.9 * a.entering_vph + 1.4 * a.exiting_vph
@@ -316,9 +341,9 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
     # 좌회전 직진환산계수
     EL = 1.0
     VLF = 3600 * VTh / (C * N * VL) if (shared_left and VL > 0 and N > 0) else 0.0
-    if VL > 0 and topo != "y_dedicated" or (topo == "y_dedicated" and VL > 0):
+    if VL > 0:
         N_for_P = N if topo != "y_dedicated" else max(a.left_lanes, 1)
-        El = _left_El(a, a.opposing_through, N_for_P if topo != "y_dedicated" else N_for_P, VL, VTh, VLF, gc_main)
+        El = _left_El(a, Vo, N_for_P, VL, VTh, VLF, gc_main)
         Ep = ep_factor(a.left_radius_m)
         left_capable = 2 if case == 2 else 1
         upct = 100 * a.u_turn / (VL_raw + a.u_turn) if (VL_raw + a.u_turn) > 0 else 0.0
@@ -395,6 +420,7 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
     tot = sum(g.volume for g in groups)
     delay = sum(g.volume * g.delay for g in groups) / tot if tot > 0 else 0.0
     detail["factors"] = {g.label: round(g.saturation / (S0 * g.lanes * common), 4) for g in groups}
+    detail["unused_queue"] = sorted(set(a.initial_queue) - {g.label for g in groups})  # 오타 등으로 적용되지 않은 키
     return ApproachResult(name=a.name, groups=groups, delay=delay, los=los_from_delay(delay), detail=detail)
 
 

@@ -8,6 +8,7 @@ from app.config import Settings, get_settings
 from app.core.llm_client import LLMClient
 from app.docx_export import NEEDS_INPUT_LABELS
 from app.facts import review_sections
+from app.hcm_signal import DetailedIntersection
 from app.pipeline import TIAPipeline
 from app.schemas import ProjectInput
 from app.state import AgencyInfo, IntersectionInput, ReportState
@@ -30,7 +31,8 @@ class AnalyzeRequest(BaseModel):
 
     project: ProjectInput
     agency: AgencyInfo | None = None
-    intersections: list[IntersectionInput] = Field(default_factory=list)
+    intersections: list[IntersectionInput] = Field(default_factory=list)  # 간이 입력(포화교통류율 직접 입력)
+    detailed_intersections: list[DetailedIntersection] = Field(default_factory=list)  # 편람 운영분석 상세 입력
     background_growth_rate: float | None = Field(default=None, ge=-0.2, le=0.5)
     use_llm: bool = False  # 실제 LLM으로 문장 작성(비용 발생). 기본 꺼짐
     access_code: str = ""
@@ -53,7 +55,21 @@ def validate_request(req: AnalyzeRequest, s: Settings) -> None:
                 raise ServiceError(422, f"{where} {a.name} 접근로: 녹색시간({a.green_time:g}초)은 신호주기({ix.cycle:g}초)보다 짧아야 합니다.")
         if sum(a.project_share for a in ix.approaches) > 1.0001:
             raise ServiceError(422, f"{where}: 접근로별 사업 교통량 배분율의 합이 100%를 넘습니다.")
-    names = [ix.name for ix in req.intersections]
+    if len(req.intersections) + len(req.detailed_intersections) > s.max_intersections:
+        raise ServiceError(422, f"교차로는 간이·상세 합쳐 최대 {s.max_intersections}개까지 입력할 수 있습니다.")
+    for ix in req.detailed_intersections:
+        where = f"상세 교차로 '{ix.name}'"
+        if not 1 <= len(ix.approaches) <= s.max_approaches:
+            raise ServiceError(422, f"{where}: 접근로는 1~{s.max_approaches}개여야 합니다.")
+        if len(ix.phases) > 8:
+            raise ServiceError(422, f"{where}: 현시는 최대 8개까지 입력할 수 있습니다.")
+        share = sum(a.project_share_left + a.project_share_through + a.project_share_right for a in ix.approaches)
+        if share > 1.0001:
+            raise ServiceError(422, f"{where}: 이동류별 사업 교통량 배분율의 합이 100%를 넘습니다.")
+        for a in ix.approaches:
+            if a.lanes > 8 or a.left_lanes > 4 or a.right_lanes > 4:
+                raise ServiceError(422, f"{where} {a.name}: 차로 수가 허용 범위를 벗어났습니다.")
+    names = [ix.name for ix in req.intersections] + [ix.name for ix in req.detailed_intersections]
     if len(set(names)) != len(names):
         raise ServiceError(422, "교차로 이름이 중복됩니다.")
 
@@ -75,6 +91,7 @@ async def run_analysis(req: AnalyzeRequest, store: SqliteJobStore, limiter: LlmR
     validate_request(req, s)
     check_llm_allowed(req, s, limiter)
     state = ReportState(project=req.project, agency=req.agency, intersections=req.intersections,
+                        detailed_intersections=req.detailed_intersections,
                         background_growth_rate=req.background_growth_rate)
     llm = LLMClient(force_mock=not req.use_llm)
     state.llm_used = not llm.mock_mode

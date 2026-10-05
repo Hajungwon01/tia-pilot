@@ -52,14 +52,24 @@ def build_facts(state: ReportState) -> FactTable:
     for v in state.los.values():
         f.add(v["avg_delay"])
         f.grades.add(v["grade"])
+        f.add(v.get("critical_vc"))
         for r in v["results"]:
             f.add(r["capacity"], r["vc_ratio"], r["vc_ratio"] * 100, r["delay"])
+            f.add(r.get("volume"), r.get("saturation"), r.get("y"), r.get("lanes"), r.get("phase"))  # 편람 차로군 값
             f.grades.add(r["los"])
             vcs.append(r["vc_ratio"])
     for ix in state.intersections:
         f.add(ix.cycle)
         for a in ix.approaches:
             f.add(a.volume, a.saturation_flow, a.green_time)
+    for ix in state.detailed_intersections:
+        f.add(ix.cycle, ix.phf, len(ix.phases), len(ix.approaches))
+        for p in ix.phases:
+            f.add(p.green, p.yellow)
+        for a in ix.approaches:
+            f.add(a.v_left, a.v_through, a.v_right, a.lanes, a.opposing_through, a.heavy_pct, a.lane_width_m,
+                  a.speed_kph, a.link_length_m, a.offset_s, a.left_radius_m)
+            f.add(a.project_share_left * 100, a.project_share_through * 100, a.project_share_right * 100)
     if state.background_growth_rate is not None:
         f.add(state.background_growth_rate * 100)
     for years in state.stages.values():
@@ -67,7 +77,7 @@ def build_facts(state: ReportState) -> FactTable:
             f.add(y, st.get("delay_reduction"))
             for stage in ("without", "with", "improved"):
                 d = st[stage]
-                f.add(d["avg_delay"], d["max_vc"])
+                f.add(d["avg_delay"], d["max_vc"], d.get("critical_vc"))
                 f.grades.add(d["grade"])
                 vcs.append(d["max_vc"])
                 for g in d["greens"].values():
@@ -76,6 +86,7 @@ def build_facts(state: ReportState) -> FactTable:
                     f.add(v)
                 for r in d["results"]:
                     f.add(r["capacity"], r["vc_ratio"], r["vc_ratio"] * 100, r["delay"])
+                    f.add(r.get("volume"), r.get("saturation"), r.get("y"), r.get("lanes"), r.get("phase"))
                     f.grades.add(r["los"])
     for ix in state.intersections:
         for a in ix.approaches:

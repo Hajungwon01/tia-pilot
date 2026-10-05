@@ -41,7 +41,14 @@
   .roles { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:4px 12px; font-size:13px; }
   .roles label { display:inline-flex; gap:4px; align-items:center; color:var(--ink); margin:0; }
   .roles input { width:auto; }
-  @media (max-width: 720px) { .row, .staff { grid-template-columns:1fr 1fr; } }
+  .modes { display:grid; gap:6px; margin:8px 0 12px; } .modes label { display:flex; gap:8px; align-items:flex-start; color:var(--ink); font-size:14px; }
+  .modes input { width:auto; margin-top:4px; }
+  [hidden] { display:none !important; }
+  .dix { border-width:2px; } .dph { display:grid; gap:8px; grid-template-columns:repeat(3, 1fr) auto; align-items:end; margin:4px 0; }
+  .dap { border:1px dashed var(--line); border-radius:8px; padding:10px; margin:10px 0; }
+  .g3 { display:grid; gap:8px; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); margin:6px 0; }
+  .chk { display:flex; gap:6px; align-items:center; color:var(--ink); font-size:13px; margin:0; } .chk input { width:auto; }
+  @media (max-width: 720px) { .row, .staff { grid-template-columns:1fr 1fr; } .dph { grid-template-columns:1fr 1fr auto; } .dph > div:nth-child(3) { display:none; } }
 </style>
 </head>
 <body>
@@ -70,8 +77,23 @@
     <p class="muted small">비워 두면 0%로 가정하지 않고 “입력 필요”로 표시합니다(지침 제11조②).</p>
 
     <h2 style="margin-top:18px">3. 분석 대상 교차로 <span class="muted small">(현장조사 교통량 — 없으면 비워도 됩니다)</span></h2>
-    <div id="intersections"></div>
-    <button type="button" class="btn small" id="addIx">+ 교차로 추가</button>
+    <div class="modes" role="radiogroup" aria-label="입력 방식">
+      <label><input type="radio" name="mode" value="detail" checked> <b>편람 상세 입력</b> — 차로 구성·좌우회전·현시로 도로용량편람 절차대로 계산(권장)</label>
+      <label><input type="radio" name="mode" value="simple"> <b>간이 입력</b> — 포화교통류율을 직접 입력(연동·보정계수 미반영)</label>
+    </div>
+    <div id="detailMode">
+      <div id="dintersections"></div>
+      <div class="actions">
+        <button type="button" class="btn small" id="addDix">+ 상세 교차로 추가</button>
+        <button type="button" class="btn small" id="sampleHcm">편람 예제 채우기(EB 접근로)</button>
+      </div>
+      <p class="muted small">교통량은 시간 교통량(vph)이고 PHF로 첨두 15분 유율로 환산됩니다. 녹색시간은 <b>녹색신호시간 G</b>(유효녹색은 G−0.3초)이며 현시 시간(G+황색)의 합이 신호주기를 넘으면 안 됩니다.
+        좌회전 CASE는 편람 표 8-4 기준입니다. <b>미지원:</b> CASE 5, 우회전 2차로 이상 공용.</p>
+    </div>
+    <div id="simpleMode" hidden>
+      <div id="intersections"></div>
+      <button type="button" class="btn small" id="addIx">+ 교차로 추가</button>
+    </div>
 
     <details style="margin-top:18px">
       <summary><b>4. 평가대행업체·참여인력 (선택)</b> — 표지·제출문·끝문에 들어갑니다. 비워 두면 [기재 필요]로 남습니다.</summary>
@@ -114,7 +136,7 @@
 
     <div class="actions">
       <button type="submit" class="btn primary" id="submit">분석 실행</button>
-      <button type="button" class="btn" id="sample">샘플 입력 채우기</button>
+      <button type="button" class="btn" id="sample">샘플 입력 채우기(간이)</button>
     </div>
   </form>
 
@@ -215,6 +237,10 @@ function buildPayload() {
     if (name || aps.length) p.intersections.push({ name, cycle: num(ix.querySelector(".ix-cycle").value),
       peak: ix.querySelector(".ix-peak").value, approaches: aps });
   });
+  // 입력 방식에 따라 한쪽만 보낸다(숨겨진 쪽의 기본 빈 카드가 섞이지 않도록)
+  if (document.querySelector('input[name="mode"]:checked').value === "detail") p.intersections = [];
+  else p.detailed_intersections = [];
+  if (document.querySelector('input[name="mode"]:checked').value === "detail") p.detailed_intersections = buildDetailed();
   const ag = { agency_name: $("ag_name").value, registration_no: $("ag_regno").value, registration_date: $("ag_regdate").value,
     lead_name: $("ag_lead").value, submission_date: $("ag_submit").value, service_period: $("ag_period").value,
     printer: $("ag_printer").value, concept_design_firm: $("ag_concept").value, agency_address: $("ag_addr").value,
@@ -245,13 +271,197 @@ $("form").addEventListener("submit", async (e) => {
 });
 
 $("sample").onclick = () => {
+  document.querySelector('input[name="mode"][value="simple"]').checked = true; setMode();  // 간이 입력 샘플
   $("name").value = "샘플 단지"; $("address").value = "서울특별시 OO구 OO동"; $("households").value = 1500;
   $("gfa").value = 180000; $("floors").value = 25; $("growth").value = 2;
   $("intersections").innerHTML = "";
   addIx({ name: "A교차로", cycle: 120, peak: "pm", aps: [
     { name: "N", vol: 400, sat: 1800, green: 40, share: 40 }, { name: "E", vol: 500, sat: 1800, green: 40, share: 10 } ] });
 };
+/* ───────── 편람 상세 입력 ───────── */
+const fld = (label, cls, extra = "") => `<div><label>${label}</label><input class="${cls}" ${extra}></div>`;
+const num0 = (label, cls, val = "", extra = "") => fld(label, cls, `type="number" step="any" value="${val}" ${extra}`);
+const sel = (label, cls, opts) => `<div><label>${label}</label><select class="${cls}">${opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select></div>`;
+
+function dixHtml() {
+  return `
+  <fieldset class="dix">
+    <legend>상세 교차로</legend>
+    <div class="grid">
+      ${fld("교차로명 *", "dx-name", 'maxlength="60"')}
+      ${num0("신호주기 C(초) *", "dx-cycle", "", 'min="1"')}
+      ${num0("첨두시간계수 PHF", "dx-phf", "0.95", 'min="0.1" max="1"')}
+      ${sel("교통량 조사 첨두시", "dx-peak", [["pm", "PM 첨두"], ["am", "AM 첨두"]])}
+    </div>
+    <h3 style="margin-top:12px">현시 <span class="muted small">(녹색신호시간 G + 황색, 신호 순서대로)</span></h3>
+    <div class="dphases"></div>
+    <button type="button" class="btn small add-ph">+ 현시 추가</button>
+    <h3 style="margin-top:12px">접근로</h3>
+    <div class="daps"></div>
+    <div class="actions">
+      <button type="button" class="btn small add-dap">+ 접근로 추가</button>
+      <button type="button" class="btn small del-dix">교차로 삭제</button>
+    </div>
+  </fieldset>`;
+}
+function phHtml() {
+  return `<div class="dph">${num0("녹색신호시간 G(초)", "ph-g", "", 'min="1"')}${num0("황색(초)", "ph-y", "3", 'min="0"')}
+    <div></div><button type="button" class="btn small del-ph">삭제</button></div>`;
+}
+function dapHtml() {
+  return `
+  <div class="dap">
+    <div class="g3">
+      ${fld("접근로명 *", "dp-name", 'maxlength="30" placeholder="예: EB"')}
+      ${sel("교차로 형태", "dp-topo", [["four_way", "네갈래"], ["t_no_left", "세갈래: 직진·우회전만"], ["t_no_right", "세갈래: 직진·좌회전만"], ["y_dedicated", "세갈래: 전용 좌·우회전"]])}
+      ${sel("좌회전 CASE", "dp-case", [["1", "1 양방보호·전용 1차로"], ["2", "2 양방보호·전용 2차로"], ["3", "3 비보호·전용 1차로"], ["4", "4 직좌동시·공용 1차로"], ["6", "6 비보호·공용 1차로"]])}
+      ${num0("차로수 N (전용 좌회전 제외)", "dp-lanes", "2", 'min="1" step="1"')}
+      ${num0("좌회전 (vph)", "dp-vl", "0", 'min="0"')}
+      ${num0("직진 (vph)", "dp-vt", "0", 'min="0"')}
+      ${num0("우회전 (vph)", "dp-vr", "0", 'min="0"')}
+      ${sel("직진·우회전 현시", "dp-phase", [["0", "현시 1"]])}
+      ${sel("전용 좌회전 현시(CASE 1·2)", "dp-lphase", [["", "해당 없음"]])}
+      ${sel("맞은편 접근로(비보호 좌회전)", "dp-opp", [["", "직접 입력"]])}
+      ${num0("사업 배분율 좌(%)", "dp-sl", "0", 'min="0" max="100"')}
+      ${num0("사업 배분율 직(%)", "dp-st", "0", 'min="0" max="100"')}
+      ${num0("사업 배분율 우(%)", "dp-sr", "0", 'min="0" max="100"')}
+    </div>
+    <details><summary class="small">세부 조건 (U턴·곡선반경·차로폭·중차량·노변마찰·연동…)</summary>
+      <div class="g3">
+        ${num0("대향직진 Vo (맞은편 미지정 시)", "dp-vo", "0", 'min="0"')}
+        ${num0("U턴 (vph)", "dp-u", "0", 'min="0"')}
+        ${num0("좌회전 곡선반경(m)", "dp-rad", "25", 'min="1"')}
+        ${num0("차로폭(m)", "dp-lw", "3.0", 'min="1"')}
+        ${num0("경사(%)", "dp-grade", "0")}
+        ${num0("중차량(%)", "dp-heavy", "0", 'min="0" max="100"')}
+        ${num0("전용 좌회전 차로수(Y형)", "dp-ll", "1", 'min="0" step="1"')}
+        ${num0("전용 우회전 차로수(Y형)", "dp-rl", "1", 'min="0" step="1"')}
+        ${num0("이면도로 진입 Ven (vph)", "dp-ven", "0", 'min="0"')}
+        ${num0("이면도로 진출 Vex (vph)", "dp-vex", "0", 'min="0"')}
+        ${num0("버스 정차대수 (vph)", "dp-vb", "0", 'min="0"')}
+        ${num0("정지선~버스정류장(m)", "dp-bl", "75", 'min="0"')}
+        ${sel("버스 정차 유형", "dp-bc", [["small", "소: 주택지역"], ["medium", "중: 업무·상업·전철역 주변"], ["large", "대: 이용객 많음"], ["bay", "별도 버스승차대"]])}
+        ${num0("노상주차 활동 (vph)", "dp-pkv", "0", 'min="0"')}
+        ${num0("횡단보행자 (인/시, 양방향)", "dp-ped", "0", 'min="0"')}
+        ${num0("보행 녹색시간 Gp(초)", "dp-gp", "0", 'min="0"')}
+        ${num0("상류 링크 길이(m)", "dp-link", "0", 'min="0"')}
+        ${num0("순행속도(kph)", "dp-spd", "0", 'min="0"')}
+        ${num0("옵셋(초)", "dp-off", "0")}
+        ${fld("초기 대기차량 Qb(대) — 차로군=대수, 쉼표 구분", "dp-qb", 'placeholder="예: 공용LT=40"')}
+      </div>
+      <p class="muted small">차로군 이름: 전용LT, 공용LT, 실질LT, 실질RT, 공용RT, 직진, 통합, 전용RT. 현장에서 관측한 값만 입력하세요(계획분석은 비워 둠 — 편람은 0으로 간주).</p>
+      <div class="g3">
+        <label class="chk"><input type="checkbox" class="dp-chan"> 우회전 교통섬(도류화)</label>
+        <label class="chk"><input type="checkbox" class="dp-pk"> 노상주차 허용</label>
+        <label class="chk"><input type="checkbox" class="dp-coord"> 신호 연동 구간(PF 적용)</label>
+      </div>
+    </details>
+    <div class="actions"><button type="button" class="btn small del-dap">접근로 삭제</button></div>
+  </div>`;
+}
+const fromHtml = (html) => { const w = document.createElement("div"); w.innerHTML = html.trim(); return w.firstElementChild; };
+
+function refreshDix(dix) {
+  const n = dix.querySelectorAll(".dph").length;
+  const phOpts = Array.from({ length: n }, (_, i) => `<option value="${i}">현시 ${i + 1}</option>`).join("");
+  const names = [...dix.querySelectorAll(".dap .dp-name")].map(e => e.value.trim()).filter(Boolean);
+  dix.querySelectorAll(".dap").forEach(ap => {
+    const me = ap.querySelector(".dp-name").value.trim();
+    [[".dp-phase", phOpts], [".dp-lphase", `<option value="">해당 없음</option>` + phOpts]].forEach(([c, o]) => {
+      const s = ap.querySelector(c), keep = s.value; s.innerHTML = o; if ([...s.options].some(x => x.value === keep)) s.value = keep;
+    });
+    const so = ap.querySelector(".dp-opp"), keep = so.value;
+    so.innerHTML = `<option value="">직접 입력</option>` + names.filter(x => x !== me).map(x => `<option value="${x}">${x}</option>`).join("");
+    if ([...so.options].some(x => x.value === keep)) so.value = keep;
+  });
+}
+function addPhase(dix, g, y) {
+  const el = fromHtml(phHtml()); dix.querySelector(".dphases").appendChild(el);
+  el.querySelector(".del-ph").onclick = () => { el.remove(); refreshDix(dix); };
+  if (g !== undefined) { el.querySelector(".ph-g").value = g; el.querySelector(".ph-y").value = y; }
+  refreshDix(dix);
+}
+function addDap(dix, d) {
+  const el = fromHtml(dapHtml()); dix.querySelector(".daps").appendChild(el);
+  el.querySelector(".del-dap").onclick = () => { el.remove(); refreshDix(dix); };
+  el.querySelector(".dp-name").addEventListener("input", () => refreshDix(dix));
+  refreshDix(dix);
+  if (d) Object.entries(d).forEach(([cls, v]) => { const e = el.querySelector("." + cls); if (e) { if (e.type === "checkbox") e.checked = !!v; else e.value = v; } });
+  refreshDix(dix);
+  return el;
+}
+function addDix(d) {
+  const el = fromHtml(dixHtml()); $("dintersections").appendChild(el);
+  el.querySelector(".add-ph").onclick = () => addPhase(el);
+  el.querySelector(".add-dap").onclick = () => addDap(el);
+  el.querySelector(".del-dix").onclick = () => el.remove();
+  if (d) {
+    el.querySelector(".dx-name").value = d.name; el.querySelector(".dx-cycle").value = d.cycle;
+    el.querySelector(".dx-phf").value = d.phf; el.querySelector(".dx-peak").value = d.peak;
+    d.phases.forEach(([g, y]) => addPhase(el, g, y)); d.aps.forEach(a => addDap(el, a));
+  } else { addPhase(el); addDap(el); }
+  return el;
+}
+$("addDix").onclick = () => addDix();
+
+function stripNull(o) { Object.keys(o).forEach(k => { if (o[k] === null || o[k] === "" || (typeof o[k] === "number" && Number.isNaN(o[k]))) delete o[k]; }); return o; }
+const val = (ap, c) => ap.querySelector("." + c).value;
+const chk = (ap, c) => ap.querySelector("." + c).checked;
+
+function parseQueue(text) {  // "공용LT=40, 실질RT=5" → {공용LT: 40, 실질RT: 5} (잘못된 항목은 무시하지 않고 NaN으로 서버가 거부)
+  const q = {};
+  text.split(",").map(s => s.trim()).filter(Boolean).forEach(pair => {
+    const [k, v] = pair.split("=").map(s => s.trim());
+    if (k) q[k] = Number(v);
+  });
+  return Object.keys(q).length ? q : null;
+}
+
+function buildDetailed() {
+  return [...document.querySelectorAll(".dix")].map(dx => {
+    const phases = [...dx.querySelectorAll(".dph")].map(p => stripNull({ green: num(p.querySelector(".ph-g").value), yellow: num(p.querySelector(".ph-y").value) }));
+    const approaches = [...dx.querySelectorAll(".dap")].map(ap => stripNull({
+      name: val(ap, "dp-name").trim(), topology: val(ap, "dp-topo"), left_case: Number(val(ap, "dp-case")),
+      lanes: num(val(ap, "dp-lanes")), v_left: num(val(ap, "dp-vl")), v_through: num(val(ap, "dp-vt")), v_right: num(val(ap, "dp-vr")),
+      phase: Number(val(ap, "dp-phase") || 0), left_phase: val(ap, "dp-lphase") === "" ? null : Number(val(ap, "dp-lphase")),
+      opposing: val(ap, "dp-opp") || null, opposing_through: num(val(ap, "dp-vo")), u_turn: num(val(ap, "dp-u")),
+      left_radius_m: num(val(ap, "dp-rad")), lane_width_m: num(val(ap, "dp-lw")), grade_pct: num(val(ap, "dp-grade")),
+      heavy_pct: num(val(ap, "dp-heavy")), left_lanes: num(val(ap, "dp-ll")), right_lanes: num(val(ap, "dp-rl")),
+      entering_vph: num(val(ap, "dp-ven")), exiting_vph: num(val(ap, "dp-vex")), bus_stops_vph: num(val(ap, "dp-vb")),
+      bus_distance_m: num(val(ap, "dp-bl")), bus_class: val(ap, "dp-bc"), parking_allowed: chk(ap, "dp-pk"),
+      parking_vph: num(val(ap, "dp-pkv")), ped_per_hour: num(val(ap, "dp-ped")), ped_green_s: num(val(ap, "dp-gp")),
+      right_channelized: chk(ap, "dp-chan"), coordinated: chk(ap, "dp-coord"), link_length_m: num(val(ap, "dp-link")),
+      speed_kph: num(val(ap, "dp-spd")), offset_s: num(val(ap, "dp-off")),
+      initial_queue: parseQueue(val(ap, "dp-qb")),
+      project_share_left: (num(val(ap, "dp-sl")) || 0) / 100, project_share_through: (num(val(ap, "dp-st")) || 0) / 100,
+      project_share_right: (num(val(ap, "dp-sr")) || 0) / 100,
+    }));
+    return stripNull({ name: dx.querySelector(".dx-name").value.trim(), cycle: num(dx.querySelector(".dx-cycle").value),
+      phf: num(dx.querySelector(".dx-phf").value), peak: dx.querySelector(".dx-peak").value, phases, approaches });
+  }).filter(d => d.name || (d.approaches && d.approaches.length));
+}
+
+function setMode() {
+  const detail = document.querySelector('input[name="mode"]:checked').value === "detail";
+  $("detailMode").hidden = !detail; $("simpleMode").hidden = detail;
+}
+document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", setMode));
+
+$("sampleHcm").onclick = () => {
+  $("name").value ||= "샘플 단지"; $("address").value ||= "서울특별시 OO구 OO동"; $("households").value ||= 1500;
+  $("gfa").value ||= 180000; $("growth").value ||= 2;
+  $("dintersections").innerHTML = "";
+  addDix({ name: "A도로×B도로", cycle: 120, phf: 0.95, peak: "pm", phases: [[45, 3], [20, 3], [46, 3]], aps: [{
+    "dp-name": "EB", "dp-topo": "four_way", "dp-case": "6", "dp-lanes": 3, "dp-vl": 90, "dp-vt": 600, "dp-vr": 320,
+    "dp-phase": "0", "dp-vo": 600, "dp-rad": 12, "dp-lw": 3.3, "dp-heavy": 5, "dp-ven": 23, "dp-vex": 20, "dp-vb": 11,
+    "dp-bl": 30, "dp-bc": "medium", "dp-pk": true, "dp-pkv": 10, "dp-ped": 400, "dp-gp": 40,
+    "dp-coord": true, "dp-link": 400, "dp-spd": 50, "dp-off": 10, "dp-qb": "공용LT=40",
+    "dp-sl": 20, "dp-st": 30, "dp-sr": 10 }] });
+};
+
 addIx();
+addDix();
+setMode();
 if ($("logout")) $("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
 </script>
 </body>
