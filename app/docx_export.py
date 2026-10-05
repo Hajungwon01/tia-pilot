@@ -16,6 +16,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 from app.core.llm_client import MOCK_PREFIX
+from app.docx_forms import add_byeolji1, add_closing_pages, add_submission_page, cover_agency_lines
 from app.facts import review_sections
 from app.reflection import load_checklist
 from app.state import ReportState
@@ -214,6 +215,42 @@ def _stage_rows(state: ReportState) -> list[list[str]]:
     return rows
 
 
+def add_toc(doc: Document) -> None:
+    """Word 목차 필드(제목 1~3단계). 쪽번호는 Word에서 열어 필드를 갱신해야 채워진다."""
+    p = doc.add_paragraph()
+    run = p.add_run()
+    parts = []
+    el = OxmlElement("w:fldChar"); el.set(qn("w:fldCharType"), "begin"); parts.append(el)
+    el = OxmlElement("w:instrText"); el.set(qn("xml:space"), "preserve"); el.text = 'TOC \\o "1-3" \\h \\z \\u'; parts.append(el)
+    el = OxmlElement("w:fldChar"); el.set(qn("w:fldCharType"), "separate"); parts.append(el)
+    for e in parts:
+        run._r.append(e)
+    hint = p.add_run("(Word에서 이 문서를 열면 '필드를 업데이트하시겠습니까?'라고 묻습니다. '예'를 누르면 목차가 채워집니다. "
+                     "수동으로는 이 영역을 우클릭 → '필드 업데이트'.)")
+    _set_font(hint, size=9, italic=True, color=(0x70, 0x70, 0x70))
+    end = p.add_run()
+    el = OxmlElement("w:fldChar"); el.set(qn("w:fldCharType"), "end"); end._r.append(el)
+
+
+def _new_section(doc: Document, landscape: bool) -> None:
+    """새 쪽에서 시작하는 구역. A4 가로/세로로 전환한다(머리글·바닥글은 앞 구역을 이어받음)."""
+    from docx.enum.section import WD_ORIENT, WD_SECTION
+
+    sec = doc.add_section(WD_SECTION.NEW_PAGE)
+    w, h = Cm(21.0), Cm(29.7)
+    sec.orientation = WD_ORIENT.LANDSCAPE if landscape else WD_ORIENT.PORTRAIT
+    sec.page_width, sec.page_height = (h, w) if landscape else (w, h)
+    sec.left_margin = sec.right_margin = Cm(2.0 if landscape else 2.5)
+
+
+def _request_field_update(doc: Document) -> None:
+    settings = doc.settings.element
+    if settings.find(qn("w:updateFields")) is None:
+        uf = OxmlElement("w:updateFields")
+        uf.set(qn("w:val"), "true")
+        settings.append(uf)
+
+
 def build_docx(state: ReportState, today: date | None = None, show_refs: bool = True) -> Document:
     today = today or date.today()
     flagged = review_sections(state)
@@ -246,11 +283,13 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
         ["세대수", f"{pr.households:,}세대"],
         ["건축 연면적", f"{pr.gross_floor_area_m2:,.0f}㎡" if pr.gross_floor_area_m2 else "미입력"],
         ["작성일", today.isoformat()],
+        *cover_agency_lines(state.agency),  # 지침 제24조⑤: 겉표지에 평가대행자·평가대행업체
     ])
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     _set_font(p.add_run("※ " + DISCLAIMER), size=10, bold=True, color=(0x80, 0x00, 0x00))
     doc.add_page_break()
+    add_submission_page(doc, state)  # 제출문(제24조⑤), 서명·날인란(제24조⑩)
 
     # ── 작성 현황 ──
     doc.add_heading("작성 현황 요약 (검토용)", level=1)
@@ -270,6 +309,11 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
         doc.add_heading("작성 시 주의", level=2)
         for w in state.warnings:
             doc.add_paragraph(w, style="List Bullet")
+    doc.add_page_break()
+
+    # ── 목차 ──
+    doc.add_heading("목 차", level=1)
+    add_toc(doc)
     doc.add_page_break()
 
     # ── 1~6장 ──
@@ -304,6 +348,12 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
         "유발교통량: 표준 원단위 기반 직접수요예측. 원단위가 임시값이면 수치는 잠정값입니다.",
     ]:
         doc.add_paragraph(line, style="List Bullet")
+
+    # 열이 많은 법정 서식(별지 제1호, 참여전문인력 명단)은 가로 방향 쪽에 배치한다.
+    _new_section(doc, landscape=True)
+    add_byeolji1(doc, state)  # 별지 제1호 서식 교통영향평가 분석표
+    add_closing_pages(doc, state)  # 끝문·참여전문인력(제24조⑥~⑧)
+    _request_field_update(doc)  # 열 때 목차 필드 갱신 안내
     return doc
 
 
