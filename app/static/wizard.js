@@ -414,6 +414,21 @@ function setMode() {
 }
 document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener("change", setMode));
 
+$("sampleFour").onclick = () => {  // 접근로 4개·현시 3개: 개선 시나리오(차로 증설·전용 좌회전·주기 조정)가 여러 개 나오는 예
+  $("name").value ||= "샘플 단지"; $("address").value ||= "서울특별시 OO구 OO동"; $("households").value ||= 1500;
+  $("gfa").value ||= 180000; $("growth").value = 2;
+  if (Number($("households").value) === 1500) fillSampleParking();
+  $("dintersections").innerHTML = "";
+  const base = { "dp-topo": "four_way", "dp-sl": 3, "dp-st": 10, "dp-sr": 2 };
+  const dx = addDix({ name: "사거리 샘플", cycle: 120, phf: 0.95, peak: "pm", phases: [[40, 3], [40, 3], [25, 3]], aps: [
+    { ...base, "dp-name": "EB", "dp-case": "6", "dp-lanes": 3, "dp-vl": 120, "dp-vt": 900, "dp-vr": 200, "dp-phase": "0" },
+    { ...base, "dp-name": "WB", "dp-case": "6", "dp-lanes": 3, "dp-vl": 100, "dp-vt": 800, "dp-vr": 150, "dp-phase": "0" },
+    { ...base, "dp-name": "NB", "dp-case": "4", "dp-lanes": 2, "dp-vl": 150, "dp-vt": 700, "dp-vr": 120, "dp-phase": "1" },
+    { ...base, "dp-name": "SB", "dp-case": "4", "dp-lanes": 2, "dp-vl": 140, "dp-vt": 650, "dp-vr": 100, "dp-phase": "1" }] });
+  const [eb, wb] = dx.querySelectorAll(".dap");  // 맞은편 접근로는 두 접근로가 모두 생긴 뒤에 지정할 수 있다
+  eb.querySelector(".dp-opp").value = "WB"; wb.querySelector(".dp-opp").value = "EB";
+};
+
 $("sampleHcm").onclick = () => {
   $("name").value ||= "샘플 단지"; $("address").value ||= "서울특별시 OO구 OO동"; $("households").value ||= 1500;
   $("gfa").value ||= 180000; $("growth").value ||= 2;
