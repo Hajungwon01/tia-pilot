@@ -151,8 +151,8 @@ def test_abbreviated_change_case_seven_years_and_range():
 
 def test_planning_applies_abbreviated_scope_and_texts():
     st = run_planning(gross_floor_area_m2=60000, floors=15, in_evaluated_district=True, request_abbreviated=True)
-    assert st.scope["target_years"] == [1] and st.scope["spatial_mode"] == "complex" and st.scope["abbreviated"]
-    assert "공동주택 단지 내" in st.sections["scope.spatial"] and "약식" in st.sections["scope.target_years"]
+    assert st.scope["target_years"] == [1] and st.scope["spatial_mode"] == "site_adjacent" and st.scope["abbreviated"]
+    assert "대지와 직접 접하거나 연결되는 도로의 교차로" in st.sections["scope.spatial"] and "약식" in st.sections["scope.target_years"]
     assert any("약식 교통영향평가(지침 제23조)" in w for w in st.warnings)
 
 

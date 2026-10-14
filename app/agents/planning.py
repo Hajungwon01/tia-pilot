@@ -51,7 +51,7 @@ class PlanningAgent(BaseAgent):
                 scope.update(abbreviated_scope(ab))
                 scope["abbreviated"] = True
                 state.warn("약식 교통영향평가(지침 제23조)로 작성: 시간적 범위는 준공 후 1년, 공간적 범위는 "
-                           + ("공동주택 단지 내" if ab.complex_only else "영향 큰 2개 이내 교차로")
+                           + ("대지와 직접 접하거나 연결되는 도로의 교차로 범위" if ab.complex_only else "영향 큰 2개 이내 교차로")
                            + ". 승인관청이 약식 적용을 인정하는지 확인 필요")
             elif ab.possible and not p.request_abbreviated:
                 state.warn("약식 교통영향평가 적용 가능(" + "; ".join(ab.reasons) + "). 적용하려면 '약식 적용'을 선택하세요(지침상 '할 수 있다')")
@@ -72,8 +72,8 @@ class PlanningAgent(BaseAgent):
             )
         if applied:
             state.put("scope.target_years", "목표년도: 준공 후 1년 (약식 교통영향평가, 교통영향평가 지침 제23조②1가)", self.name)
-            spatial = ("공간적 범위: 공동주택 단지 내 (약식 교통영향평가, 지침 제23조②2가 단서)" if ab.complex_only else
-                       "공간적 범위: 건축으로 교통에 영향을 많이 받는 2개 이내 교차로 (약식 교통영향평가, 지침 제23조②2가)")
+            spatial = ("공간적 범위: 대지와 직접 접하거나 연결되는 도로의 교차로 범위 (약식 교통영향평가, 서울시 수립지침 제23조②2가 단서; 국토부 지침은 공동주택에 한해 단지 내로 규정)" if ab.complex_only else
+                       "공간적 범위: 건축으로 교통에 영향을 많이 받는 2개 이내 교차로 (약식 교통영향평가, 서울시 수립지침 제23조②2가)")
             state.put("scope.spatial", spatial, self.name)
         else:
             state.put("scope.target_years", "목표년도: 준공 후 1년, 3년 (교통영향평가 지침 제5조①1)", self.name)
@@ -106,5 +106,5 @@ def focus_items_text() -> str:
     """별표 3 중점분석 항목(개별 건축물, 6.)을 보고서 범위 문단으로 옮긴다. 원천은 체크리스트 JSON."""
     cl = load_checklist()
     rows = [f"- {i['ref'][-1]}. {i['text'].removeprefix('중점분석: ')}" for i in cl["items"] if i.get("group") == "annex3"]
-    return ("중점분석 항목 (지침 별표 3 6. 개별 건축물 준용 — 공동주택은 별표 3에 따로 열거되지 않아 확인 필요):\n"
+    return ("중점분석 항목 (서울시 수립지침·국토부 지침 별표 3 6. 개별 건축물 준용 — 공동주택은 별표 3에 따로 열거되지 않아 확인 필요):\n"
             + "\n".join(rows))

@@ -29,7 +29,7 @@ class Abbreviated(BaseModel):
     possible: bool | None  # None: 판정에 필요한 입력 부족
     applied: bool = False  # 가능하고 사용자가 적용을 선택한 경우
     cases: list[str] = Field(default_factory=list)  # district(제1항 제3호) · change(제1항 제4호)
-    complex_only: bool = False  # 제1항 제3호 공동주택: 공간적 범위가 단지 내
+    complex_only: bool = False  # 제1항 제3호: 공간적 범위가 대지에 접하거나 연결되는 도로의 교차로(서울 지침; 국토부 지침은 공동주택이면 단지 내)
     reasons: list[str] = Field(default_factory=list)
     basis: str = ""
 
@@ -232,5 +232,5 @@ def assess_project(project: ProjectInput, region: str = "seoul", thresholds: dic
 
 def abbreviated_scope(ab: Abbreviated) -> dict:
     """지침 제23조②: 약식 평가의 시간적·공간적 범위."""
-    return {"target_years": [1], "spatial_mode": "complex" if ab.complex_only else "two_intersections",
+    return {"target_years": [1], "spatial_mode": "site_adjacent" if ab.complex_only else "two_intersections",
             "radius_km": None, "min_intersections": None, "max_intersections": None if ab.complex_only else 2}

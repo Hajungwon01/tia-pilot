@@ -1,4 +1,4 @@
-"""Reflection 에이전트: 지침 기반 체크리스트(v0.2) 누락 검사."""
+"""Reflection 에이전트: 지침 기반 체크리스트(v0.3) 누락 검사."""
 import json
 from pathlib import Path
 

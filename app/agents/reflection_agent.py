@@ -8,7 +8,7 @@ from .base import BaseAgent
 
 
 class ReflectionAgent(BaseAgent):
-    """체크리스트(v0.2)로 누락을 점검하고 정량 기준(rule)을 판정한다. MOCK 문장은 '작성됨'으로 인정하지 않는다."""
+    """체크리스트(v0.3)로 누락을 점검하고 정량 기준(rule)을 판정한다. MOCK 문장은 '작성됨'으로 인정하지 않는다."""
 
     name = "reflection"
 

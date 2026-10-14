@@ -6,7 +6,9 @@ from .base import BaseAgent
 AI_SECTIONS = {
     "improve.roads_intersections": "주변가로 및 교차로: 현황 및 문제점, 개선방안",
     "improve.access": "진·출입 동선: 현황 및 문제점, 개선방안",
-    "improve.transit_walk_bike": "대중교통, 자전거 및 보행: 현황 및 문제점, 개선방안",
+    "improve.transit": "대중교통: 현황 및 문제점, 개선방안",
+    "improve.walk": "보행: 현황 및 문제점, 개선방안",
+    "improve.bike": "자전거: 현황 및 문제점, 개선방안",
     "improve.parking": "주차: 현황 및 문제점, 개선방안",
     "improve.safety": "교통안전 및 기타: 현황 및 문제점, 개선방안",
 }

@@ -53,9 +53,20 @@ def parking_cap(state: ReportState) -> tuple[str, str]:
     return OK, f"계획 {planned:,}대는 법정 {legal:,}대의 {planned / legal * 100:.0f}%로 권장 상한 {pct:g}% 이내{note}"
 
 
+def external_improvement(state: ReportState) -> tuple[str, str]:
+    """서울 별표 1 4.아: 사업지구 외부 교통개선은 수립 대상사업 범위의 10배 이상 건축물만 작성한다."""
+    mult = ((state.scope or {}).get("eligibility") or {}).get("multiple")
+    if mult is None:
+        return UNKNOWN, "대상 규모 배수를 판정할 수 없어(면적 미입력) 판단할 수 없음"
+    if mult >= 10:
+        return ATTENTION, f"대상 기준의 {mult:.1f}배(10배 이상): 사업지구 외부 교통개선 항목을 작성해야 함"
+    return OK, f"대상 기준의 {mult:.1f}배(10배 미만): 사업지구 외부 교통개선 항목은 작성 대상이 아님"
+
+
 RULES: dict[str, Callable[[ReportState], tuple[str, str]]] = {
     "entrance_400": entrance_400,
     "parking_cap": parking_cap,
+    "external_improvement": external_improvement,
 }
 
 

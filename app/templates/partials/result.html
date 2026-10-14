@@ -48,7 +48,7 @@
       {% endif %}
       <tr><th>시간적 범위</th><td>준공 후 {{ s.scope.target_years | join("년, ") }}년</td></tr>
       <tr><th>공간적 범위</th><td>
-        {% if s.scope.spatial_mode == "complex" %}공동주택 단지 내 (약식)
+        {% if s.scope.spatial_mode == "site_adjacent" %}대지에 접하거나 연결되는 도로의 교차로 (약식)
         {% elif s.scope.spatial_mode == "two_intersections" %}영향 큰 2개 이내 교차로 (약식)
         {% else %}반경 {{ s.scope.radius_km }}km, 교차로 {{ s.scope.min_intersections }}개 이상{% endif %}
         {% if s.scope.spatial_provisional %} <span class="badge warn">임시</span>{% endif %}</td></tr>
@@ -150,7 +150,7 @@
 {% endif %}
 
 <div class="card">
-  <h3>지침 체크리스트 점검 (v0.2)</h3>
+  <h3>지침 체크리스트 점검 (v0.3)</h3>
   <p><b>{{ s.reflection.passed }} / {{ s.reflection.auto_total }}</b> 항목 충족 · 사람이 직접 확인할 항목 {{ s.reflection.manual | length }}건</p>
   {% for r in s.reflection.rules %}
   <p><span class="badge {{ 'bad' if r.status == 'attention' else '' }}">{{ r.label }}</span> <span class="small">{{ r.ref }}</span> {{ r.message }}</p>

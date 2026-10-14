@@ -44,21 +44,21 @@ def _state(am=(100, 200), pm=(150, 120), status="OFFICIAL"):
 
 def test_checklist_v02_covers_annexes():
     cl = load_checklist()
-    assert cl["version"] == "0.2"
+    assert cl["version"] == "0.3"
     refs = " ".join(i["ref"] for i in cl["items"])
     for annex in ("별표2", "별표3", "별표7", "별표8"):
         assert annex in refs
-    assert len([i for i in cl["items"] if i.get("group") == "annex3"]) == 9  # 별표 3 6.가~자
+    assert len([i for i in cl["items"] if i.get("group") == "annex3"]) == 12  # 별표 3 6.가~자 + 서울 차·카·타
     assert len([i for i in cl["items"] if i.get("group") == "annex8"]) == 4  # 별표 8 대분류 4개
     assert not any("별표 2" in x and "별표 3" in x for x in cl["not_yet_reviewed"])  # 읽은 별표는 미검토 목록에서 제외
 
 
 def test_new_items_do_not_change_report_structure():
-    """별표 1 구조(key 항목) 수는 그대로: 새 항목은 manual/rule이라 보고서 섹션을 늘리지 않는다."""
+    """보고서 구조(key 항목)는 54개: 서울 별표 1에 맞춰 대중교통·보행·자전거를 분리한 것 외에 manual/rule 항목은 섹션을 늘리지 않는다."""
     cl = load_checklist()
-    assert sum(1 for i in cl["items"] if i["check"] == "key") == 52
+    assert sum(1 for i in cl["items"] if i["check"] == "key") == 54
     r = check_report(set(), cl)
-    assert r["auto_total"] == 52
+    assert r["auto_total"] == 54
     assert len(r["manual"]) > 5  # 별표 2·3·7·8 항목이 사람 확인 목록에 들어옴
     assert not any(i["check"] == "rule" for i in r["manual"])
 
@@ -86,7 +86,7 @@ def test_unknown_rule_name_is_not_silently_passed():
 def test_pipeline_reports_rules_and_scope_lists_annex3_focus_items():
     st = asyncio.run(TIAPipeline().run(ReportState(
         project=ProjectInput(name="t", address="서울 OO동", households=300, gross_floor_area_m2=60000))))
-    assert [r["id"] for r in st.reflection["rules"]] == ["A2-2.3", "A2-8.5"]
+    assert [r["id"] for r in st.reflection["rules"]] == ["A2-2.3", "A2-8.5", "SE-7"]
     scope = st.sections["intro.scope"]
     assert "별표 3 6. 개별 건축물 준용" in scope
     assert "- 가. " in scope and "- 자. 이용자(인구)의 교통이용 유형 및 행태 분석" in scope

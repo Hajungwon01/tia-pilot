@@ -55,7 +55,7 @@ KEY_TITLES = {
     "unitrate.source_recency": "원단위 출처 및 조사시점", "unitrate.year_adjust": "기준년도 보정",
     "unitrate.occupancy": "평균 재차인원", "modeshare.basis": "교통수단 분담률", "parking.method": "주차수요 예측방법",
     "improve.roads_intersections": "주변가로 및 교차로", "improve.access": "진·출입 동선",
-    "improve.transit_walk_bike": "대중교통, 자전거 및 보행", "improve.parking": "주차",
+    "improve.transit": "대중교통", "improve.walk": "보행", "improve.bike": "자전거", "improve.parking": "주차",
     "improve.safety": "교통안전 및 기타",
     "effect.quantitative": "개선효과 분석(계량)", "effect.qualitative": "개선효과 분석(비계량)",
     "plan.actors_timing": "사업시행주체 및 시행시기", "plan.construction": "공사 중 교통처리대책",
@@ -327,7 +327,7 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
     doc.add_heading("작성 현황 요약 (검토용)", level=1)
     r = state.reflection
     if r:
-        doc.add_paragraph(f"지침 체크리스트(v0.2) 자동 점검: {r['passed']} / {r['auto_total']} 항목 충족. "
+        doc.add_paragraph(f"지침 체크리스트(v0.3) 자동 점검: {r['passed']} / {r['auto_total']} 항목 충족. "
                           f"사람이 직접 확인할 항목 {len(r['manual'])}건.")
         for rule in r.get("rules", []):
             doc.add_paragraph(f"[{rule['label']}] {rule['ref']}: {rule['message']}", style="List Bullet")
