@@ -191,7 +191,7 @@ def test_api_accepts_mixed_use_and_form_lists_uses(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "limiter", LlmRunLog(db))
     monkeypatch.setattr(main, "throttle", auth.LoginThrottle())
     c = TestClient(main.app)
-    page = c.get("/").text
+    page = c.get("/app").text
     assert "복합용도" in page and "office_general" in page and "retail_mall" in page  # 용도 목록은 JSON으로 내려감
     body = {"project": {"name": "복합", "address": "서울", "households": 400, "gross_floor_area_m2": 30000, "floors": 12,
                         "other_uses": [{"use": "office_general", "area_m2": 8000}]}}

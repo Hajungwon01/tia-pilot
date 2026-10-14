@@ -36,10 +36,13 @@ def login(c, code=ALPHA):
 
 
 # ── 접근 통제 ──
-def test_everything_but_login_and_health_requires_auth(app_env):
+def test_everything_but_login_health_and_intro_pages_requires_auth(app_env):
     c = new_client()
-    r = c.get("/")
+    r = c.get("/app")
     assert r.status_code == 303 and r.headers["location"] == "/login"
+    for open_path in ("/", "/guide", "/static/site.css", "/static/site.js"):
+        assert c.get(open_path).status_code == 200, open_path  # 소개·안내·정적 파일은 로그인 없이
+    assert c.get("/static/wizard.js").status_code == 200  # 코드는 비밀이 아니며 데이터는 api에서만 나온다
     assert c.get("/login").status_code == 200
     assert c.get("/health").json()["auth"] is True
     assert c.post("/api/analyze", json=PAYLOAD).status_code == 401
@@ -54,7 +57,7 @@ def test_login_flow_sets_hardened_cookie(app_env):
     assert r.status_code == 200
     sc = r.headers["set-cookie"].lower()
     assert "httponly" in sc and "samesite=lax" in sc and "tia_session=" in sc
-    assert c.get("/").status_code == 200
+    assert c.get("/app").status_code == 200
     assert c.post("/api/analyze", json=PAYLOAD).status_code == 200
     assert c.get("/login").status_code == 303  # 이미 로그인했으면 폼으로
 
@@ -63,13 +66,13 @@ def test_logout_revokes_browser_session(app_env):
     c = new_client()
     login(c)
     assert c.post("/api/logout").status_code == 200
-    assert c.get("/").status_code == 303
+    assert c.get("/app").status_code == 303
 
 
 def test_login_page_is_not_shown_when_auth_disabled(monkeypatch):
     set_env(monkeypatch, BETA_CODES="")
     r = new_client().get("/login")
-    assert r.status_code == 303 and r.headers["location"] == "/"
+    assert r.status_code == 303 and r.headers["location"] == "/app"
 
 
 # ── 토큰 변조·만료 ──
@@ -90,7 +93,7 @@ def test_tampered_forged_and_expired_tokens_rejected(app_env):
 def test_cookie_with_bad_signature_is_treated_as_logged_out(app_env):
     c = new_client()
     c.cookies.set(auth.COOKIE, auth.make_token("u_x", get_settings(), now=0))  # 만료 토큰
-    assert c.get("/").status_code == 303
+    assert c.get("/app").status_code == 303
     assert c.post("/api/analyze", json=PAYLOAD).status_code == 401
 
 
@@ -176,7 +179,7 @@ def test_production_cookie_is_secure(monkeypatch, tmp_path):
 def test_security_headers_and_no_public_api_docs(app_env):
     c = new_client()
     login(c)
-    r = c.get("/")
+    r = c.get("/app")
     assert r.headers["x-frame-options"] == "DENY" and r.headers["x-content-type-options"] == "nosniff"
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
     assert r.headers["cache-control"] == "no-store"

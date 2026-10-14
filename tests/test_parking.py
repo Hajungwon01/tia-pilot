@@ -169,7 +169,7 @@ def test_api_and_ui_show_parking(monkeypatch, tmp_path):
     assert "주차수요 예측" in html and "1,120대" in html and "임시 원단위" in html
     bad = c.post("/api/analyze", json={"project": {**body["project"], "households": 999}})
     assert bad.status_code == 422
-    assert "주차" in c.get("/").text
+    assert "주차" in c.get("/app").text
 
 
 def test_docx_form_items_4_and_5_are_filled(tmp_path):

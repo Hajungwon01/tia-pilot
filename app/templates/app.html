@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}분석하기 — 교통영향평가 초안 자동화{% endblock %}
+{% block navextra %}{% if auth_enabled %}<button type="button" class="btn small ghost" id="logout">로그아웃</button>{% endif %}{% endblock %}
+{% block content %}
+<script type="application/json" id="boot">{{ boot | tojson }}</script>
+<div class="container">
+  <div id="wizardView" class="app-wrap">
+    <aside class="stepper" aria-label="입력 단계">
+      <h4>진행 단계</h4>
+      <button type="button" class="st-item active" data-step="1"><span class="st-num"><span>1</span></span><span class="st-t"><b>사업 개요</b><small data-fill="1">기본 정보·건축 개요</small></span></button>
+      <button type="button" class="st-item" data-step="2"><span class="st-num"><span>2</span></span><span class="st-t"><b>주차</b><small data-fill="2">법정·계획 대수</small></span></button>
+      <button type="button" class="st-item" data-step="3"><span class="st-num"><span>3</span></span><span class="st-t"><b>교차로</b><small data-fill="3">현황조사·신호</small></span></button>
+      <button type="button" class="st-item" data-step="4"><span class="st-num"><span>4</span></span><span class="st-t"><b>대행업체·표지</b><small data-fill="4">표지·제출문·끝문</small></span></button>
+      <button type="button" class="st-item" data-step="5"><span class="st-num"><span>5</span></span><span class="st-t"><b>확인·실행</b><small data-fill="5">요약 후 분석</small></span></button>
+      <div class="side-actions">
+        <button type="button" class="btn small" id="sampleAll">✨ 샘플 불러오기</button>
+        <button type="button" class="btn small ghost" id="resetAll">입력 지우기</button>
+      </div>
+    </aside>
+
+    <form id="form" autocomplete="off" novalidate>
+      <!-- ① 사업 개요 -->
+      <section class="panel" data-step="1">
+        <header><h2>① 사업 개요</h2><p>사업명·주소·세대수는 필수예요. 연면적을 넣으면 평가 대상 여부가 바로 판정돼요.</p></header>
+        <div class="sub">기본 정보</div>
+        <div class="grid">
+          <div><label for="name" class="req">사업명</label><input id="name" required maxlength="100" placeholder="예: OO지구 공동주택 신축"></div>
+          <div><label for="address" class="req">위치(주소)</label><input id="address" required maxlength="200" placeholder="예: 서울특별시 OO구 OO동 123"></div>
+          <div><label for="households" class="req">세대수</label><input id="households" type="number" min="1" step="1" required placeholder="1500"></div>
+          <div><label for="gfa">건축 연면적(㎡)</label><input id="gfa" type="number" min="1" step="any" placeholder="예: 180000"><div class="field-hint">평가 대상 판정 기준 (신축·용도변경)</div></div>
+          <div><label for="floors">최고 층수</label><input id="floors" type="number" min="1" step="1" placeholder="25"></div>
+        </div>
+        <div class="hint-card" id="hintElig"><span class="hi">⚖️</span><div><b>대상 여부 미리보기</b><p>연면적을 입력하면 서울시 기준(아파트 50,000㎡)과 비교해 알려드려요.</p></div></div>
+
+        <div class="sub">건축 개요 <span class="muted small" style="font-weight:500">서울시 수립지침 제24조③ — 비우면 보고서에 [기재 필요]</span></div>
+        <div class="grid">
+          <div><label for="ov_laws">인·허가 관련 법규</label><input id="ov_laws" maxlength="200" placeholder="예: 건축법 제11조, 주택법 제15조"></div>
+          <div><label for="ov_period">사업기간</label><input id="ov_period" maxlength="100" placeholder="예: 2027.1 ~ 2029.12"></div>
+          <div><label for="ov_plan">도시계획사항</label><input id="ov_plan" maxlength="200" placeholder="용도지역·지구단위계획 등"></div>
+          <div><label for="ov_use">실제 용도</label><input id="ov_use" maxlength="100" placeholder="비우면 공동주택(아파트)"></div>
+          <div><label for="ov_site">대지면적(㎡)</label><input id="ov_site" type="number" min="1" step="any"></div>
+          <div><label for="ov_bcr">건폐율(%)</label><input id="ov_bcr" type="number" min="0" max="100" step="any"></div>
+          <div><label for="ov_far">용적률(%)</label><input id="ov_far" type="number" min="0" max="2000" step="any"></div>
+          <div><label for="ov_base">지하 층수</label><input id="ov_base" type="number" min="0" step="1"></div>
+          <div><label for="ov_ent">사업지 진출입구 수</label><input id="ov_ent" type="number" min="0" step="1"></div>
+        </div>
+
+        <div class="sub">사업 유형·복합용도·약식 평가 <span class="muted small" style="font-weight:500">신축 단일 아파트면 건너뛰어도 돼요</span></div>
+        <div id="kindBox">
+          <div class="grid">
+            <div><label for="kind">사업 유형</label>
+              <select id="kind"><option value="new">신축</option><option value="expansion">증축</option><option value="use_change">용도변경(변경 후 공동주택)</option></select></div>
+            <div class="expOnly"><label for="exGfa">기존 준공 연면적(㎡)</label><input id="exGfa" type="number" min="1" step="any"></div>
+            <div class="expOnly"><label for="exAdd">이번 증축 연면적(㎡)</label><input id="exAdd" type="number" min="1" step="any"></div>
+            <div class="expOnly"><label for="exPrior">이전 증축 합계(㎡)</label><input id="exPrior" type="number" min="0" step="any" value="0"></div>
+            <div class="chgOnly"><label for="exEval">기존 건축물이 교통영향평가를 받고 준공?</label>
+              <select id="exEval"><option value="">모름</option><option value="yes">예</option><option value="no">아니오</option></select></div>
+            <div><label for="inDistrict">평가를 실시한 사업지구 안에 건축?</label>
+              <select id="inDistrict"><option value="">모름</option><option value="yes">예</option><option value="no">아니오</option></select></div>
+            <div class="chgOnly"><label for="yrs">기존 사업 심의·완료 후 경과(년)</label><input id="yrs" type="number" min="0" step="any"></div>
+            <div style="align-self:end"><label class="chk"><input type="checkbox" id="reqAbbr"> 약식 교통영향평가 적용 가능하면 적용</label></div>
+          </div>
+          <p class="muted small" id="kindHelp">증축은 위 ‘건축 연면적’ 대신 기존·증축 면적으로 판정합니다(별표 비고 5). 약식은 지침 제23조 요건을 충족할 때만 적용됩니다.</p>
+          <div style="margin-top:12px"><b>복합용도</b> <span class="muted small">— 같은 건축물·부지의 공동주택 외 용도(신축·용도변경에만 적용, Swa 판정). 유발교통량은 공동주택만 계산합니다.</span></div>
+          <div id="uses"></div>
+          <button type="button" class="btn small" id="addUse">+ 용도 추가</button>
+        </div>
+      </section>
+
+      <!-- ② 주차 -->
+      <section class="panel" data-step="2" hidden>
+        <header><h2>② 주차</h2><p>주택형별 전용면적과 세대수를 넣으면 법정 주차대수를 계산하고, 계획 대수와 비교해요. (주택건설기준 등에 관한 규정 제27조, 특별시)</p></header>
+        <div class="sub">주택형별 전용면적·세대수</div>
+        <div id="unitTypes"></div>
+        <button type="button" class="btn small" id="addUnit">+ 주택형 추가</button>
+        <div class="hint-card" id="hintUnits"><span class="hi">🅿️</span><div><b>법정 주차대수 미리보기</b><p>주택형을 입력하면 예상 법정 대수를 보여드려요. (최종 계산은 분석 시 서버에서 해요.)</p></div></div>
+
+        <div class="sub">계획 주차대수와 원단위</div>
+        <div class="grid">
+          <div><label for="planned">계획 주차대수(건축계획)</label><input id="planned" type="number" min="0" step="1"></div>
+          <div><label for="pdem">세대당 주차수요 원단위(대/세대)</label><input id="pdem" type="number" min="0" step="any" placeholder="비우면 임시값"><div class="field-hint">비우면 임시 원단위로 계산하며 "잠정" 표시</div></div>
+          <div><label for="psrc">원단위 자료 출처</label><input id="psrc" maxlength="300" placeholder="유사 건축물 조사·관련 자료"></div>
+        </div>
+        <div class="sub">주차 세부 <span class="muted small" style="font-weight:500">해당 없으면 0을 입력하세요</span></div>
+        <div class="grid">
+          <div><label for="ov_pself">자주식(대)</label><input id="ov_pself" type="number" min="0" step="1"></div>
+          <div><label for="ov_pmech">기계식(대)</label><input id="ov_pmech" type="number" min="0" step="1"></div>
+          <div><label for="ov_pacc">장애인(대)</label><input id="ov_pacc" type="number" min="0" step="1"></div>
+          <div><label for="ov_pwom">여성(대)</label><input id="ov_pwom" type="number" min="0" step="1"></div>
+          <div><label for="ov_pcmp">경차(대)</label><input id="ov_pcmp" type="number" min="0" step="1"></div>
+          <div><label for="ov_ptour">관광버스(대)</label><input id="ov_ptour" type="number" min="0" step="1"></div>
+        </div>
+      </section>
+
+      <!-- ③ 교차로 -->
+      <section class="panel" data-step="3" hidden>
+        <header><h2>③ 분석 대상 교차로</h2><p>현장조사 교통량이 없으면 비워도 돼요. 비우면 LOS·도표는 빠지고 나머지는 계산돼요.</p></header>
+        <div class="grid" style="max-width:420px">
+          <div><label for="growth">배경교통량 연 증가율(%)</label><input id="growth" type="number" step="any" min="-20" max="50" placeholder="예: 2"><div class="field-hint">비우면 0%로 가정하지 않고 “입력 필요”로 표시(지침 제11조②)</div></div>
+        </div>
+        <div class="sub">입력 방식</div>
+        <div class="segmented" role="radiogroup" aria-label="입력 방식">
+          <label class="seg-opt"><input type="radio" name="mode" value="detail" checked><div><b>편람 상세 입력 <span class="badge info">권장</span></b><span>차로 구성·좌우회전·현시로 도로용량편람 절차대로 계산</span></div></label>
+          <label class="seg-opt"><input type="radio" name="mode" value="simple"><div><b>간이 입력</b><span>포화교통류율을 직접 입력 (연동·보정계수 미반영)</span></div></label>
+        </div>
+        <div id="detailMode" style="margin-top:18px">
+          <div id="dintersections"></div>
+          <div class="actions">
+            <button type="button" class="btn small" id="addDix">+ 상세 교차로 추가</button>
+            <button type="button" class="btn small" id="sampleHcm">편람 예제 채우기(EB 접근로)</button>
+          </div>
+          <p class="muted small" style="margin-top:12px">교통량은 시간 교통량(vph)이고 PHF로 첨두 15분 유율로 환산됩니다. 녹색시간은 <b>녹색신호시간 G</b>(유효녹색은 G−0.3초)이며 현시 시간(G+황색)의 합이 신호주기를 넘으면 안 됩니다.
+            좌회전 CASE는 편람 표 8-4 기준입니다. <b>미지원:</b> CASE 5, 우회전 2차로 이상 공용.</p>
+        </div>
+        <div id="simpleMode" hidden style="margin-top:18px">
+          <div id="intersections"></div>
+          <div class="actions">
+            <button type="button" class="btn small" id="addIx">+ 교차로 추가</button>
+            <button type="button" class="btn small" id="sample">간이 샘플 채우기</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ④ 대행업체·표지 -->
+      <section class="panel" data-step="4" hidden>
+        <header><h2>④ 평가대행업체·표지</h2><p>선택 항목이에요. 비워 두면 표지·제출문·끝문에 [기재 필요]로 남아요. 서명·날인은 도구가 대신하지 않아요.</p></header>
+        <div class="sub">평가대행업체·사업자</div>
+        <div class="grid">
+          <div><label for="ag_name">평가대행업체</label><input id="ag_name"></div>
+          <div><label for="ag_regno">등록번호</label><input id="ag_regno"></div>
+          <div><label for="ag_regdate">등록일</label><input id="ag_regdate" placeholder="YYYY-MM-DD"></div>
+          <div><label for="ag_lead">책임자(평가대행자)</label><input id="ag_lead"></div>
+          <div><label for="ag_submit">제출일</label><input id="ag_submit" placeholder="YYYY-MM-DD"></div>
+          <div><label for="ag_period">용역 수행기간</label><input id="ag_period"></div>
+          <div><label for="ag_printer">인쇄업체</label><input id="ag_printer"></div>
+          <div><label for="ag_concept">구상용역 수행업체</label><input id="ag_concept"></div>
+          <div><label for="ag_addr">업체 주소</label><input id="ag_addr"></div>
+          <div><label for="ag_phone">업체 전화</label><input id="ag_phone"></div>
+          <div><label for="cl_name">사업자</label><input id="cl_name"></div>
+          <div><label for="cl_addr">사업자 주소</label><input id="cl_addr"></div>
+          <div><label for="cl_phone">사업자 전화</label><input id="cl_phone"></div>
+        </div>
+        <div class="sub">표지 양식 <span class="muted small" style="font-weight:500">서울시 수립지침 별표 11</span></div>
+        <div class="grid">
+          <div><label for="ag_receipt">접수번호</label><input id="ag_receipt"></div>
+          <div><label for="ag_mgmt">관리번호</label><input id="ag_mgmt"></div>
+          <div><label for="ag_rtype">심의종류</label><select id="ag_rtype"><option value="new">신규(생략 가능)</option><option value="change">변경</option><option value="abbreviated">약식</option></select></div>
+          <div><label for="ag_rcount">변경 횟수</label><input id="ag_rcount" type="number" min="0" step="1" value="0"></div>
+          <div><label for="ag_stage">심의진행여부</label><select id="ag_stage"><option value="main">본보고서(최초 접수)</option><option value="pre_review">사전검토 보완서</option><option value="decision">심의의결보완서</option><option value="re_review">보완심의 보고서</option></select></div>
+          <div><label for="ag_scount">보완심의 횟수</label><input id="ag_scount" type="number" min="0" step="1" value="0"></div>
+        </div>
+        <div class="actions" style="margin-top:14px">
+          <label class="chk"><input type="checkbox" id="ag_cost"> 대행비용 산정근거 첨부</label>
+          <label class="chk"><input type="checkbox" id="ag_contract"> 용역계약서 사본 첨부</label>
+        </div>
+        <div class="sub">참여전문인력</div>
+        <div id="staff"></div>
+        <button type="button" class="btn small" id="addStaff">+ 인력 추가</button>
+      </section>
+
+      <!-- ⑤ 확인·실행 -->
+      <section class="panel" data-step="5" hidden>
+        <header><h2>⑤ 확인하고 실행</h2><p>입력한 내용을 확인하세요. 실행 후에도 "입력 수정"으로 돌아와 다시 돌릴 수 있어요.</p></header>
+        <div class="sum-grid" id="summary"></div>
+        <div class="sub">문장 작성 방식</div>
+        <label class="seg-opt" style="cursor:{% if llm_available %}pointer{% else %}not-allowed{% endif %}">
+          <input type="checkbox" id="use_llm" {% if not llm_available %}disabled{% endif %}>
+          <div><b>실제 LLM으로 문제점·개선방안 문단 작성</b>
+            <span>{% if llm_available %}{{ llm_provider }} · {{ llm_model }} — 호출 7회 이상, 비용이 발생해요. 꺼 두면 그 문단은 자리표시로 남아요.
+              {% else %}서버에 LLM 키가 설정되지 않아 사용할 수 없어요. 해당 문단은 자리표시로 남아요.{% endif %}</span></div>
+        </label>
+        {% if needs_code %}
+        <div style="margin-top:12px;max-width:300px"><label for="access_code">접근 코드 (실제 LLM 사용 시 필요)</label><input id="access_code" type="password" autocomplete="off"></div>
+        {% endif %}
+        <button type="submit" class="btn primary run-btn" id="submit">분석 실행</button>
+      </section>
+
+      <div class="wiz-bar">
+        <button type="button" class="btn" id="prevBtn">← 이전</button>
+        <div class="wiz-prog"><small id="progTxt">1 / 5 단계</small><div class="progress"><i id="progBar" style="width:20%"></i></div></div>
+        <button type="button" class="btn primary" id="nextBtn">다음 →</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="resultView" hidden>
+    <div id="result" aria-live="polite"></div>
+  </div>
+</div>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block scripts %}<script src="/static/wizard.js"></script>{% endblock %}

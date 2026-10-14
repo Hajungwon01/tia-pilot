@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}사용 안내 — 교통영향평가 초안 자동화{% endblock %}
+{% block content %}
+<main class="container guide-wrap">
+  <aside class="toc" aria-label="목차">
+    <h4>이 페이지</h4>
+    <a href="#prep">시작 전 준비물</a>
+    <a href="#steps">5단계 입력 방법</a>
+    <a href="#result">결과 읽는 법</a>
+    <a href="#rules">판정 기준 한눈에</a>
+    <a href="#limits">사람이 해야 할 일</a>
+    <a href="#sources">근거 자료</a>
+  </aside>
+
+  <article class="guide">
+    <h1>사용 안내</h1>
+    <p class="lead">처음 쓰는 분을 위한 안내예요. 필요한 자료를 챙기고, 다섯 단계를 따라 입력하면 대시보드와 Word 초안이 만들어져요. 모르는 항목은 비워 두어도 돼요 — 비운 곳은 "입력 필요"로 표시됩니다.</p>
+
+    <section id="prep">
+      <h2><span class="no">1</span>시작 전 준비물</h2>
+      <p>아래 자료가 있으면 한 번에 끝나요. 눌러서 체크해 두면 이 브라우저에 기억해요.</p>
+      <div class="progress" aria-hidden="true"><i id="prepBar" style="width:0"></i></div>
+      <p class="small muted" id="prepTxt" style="margin-top:6px">0 / 6 준비됨</p>
+      <ul class="prep">
+        <li data-key="basic"><input type="checkbox" tabindex="-1"><div class="pt"><b>사업 기본 정보</b><span>사업명, 주소, 세대수, 건축 연면적(㎡), 최고 층수</span></div></li>
+        <li data-key="units"><input type="checkbox" tabindex="-1"><div class="pt"><b>주택형별 전용면적과 세대수</b><span>예: 59㎡ 300세대, 84㎡ 900세대, 114㎡ 300세대 — 법정 주차대수 계산에 필요해요</span></div></li>
+        <li data-key="plan"><input type="checkbox" tabindex="-1"><div class="pt"><b>건축계획 값</b><span>대지면적, 건폐율, 용적률, 지하 층수, 진출입구 수, 계획 주차대수(자주식·기계식, 장애인·여성·경차)</span></div></li>
+        <li data-key="survey"><input type="checkbox" tabindex="-1"><div class="pt"><b>교차로 현황조사 결과</b><span>분석 대상 교차로의 신호주기, 현시별 녹색시간, 접근로별 좌·직·우 교통량(첨두시)</span></div></li>
+        <li data-key="agency"><input type="checkbox" tabindex="-1"><div class="pt"><b>평가대행업체·사업자 정보</b><span>표지·제출문·끝문에 들어가요. 접수번호·관리번호, 참여전문인력 명단 포함</span></div></li>
+        <li data-key="llm"><input type="checkbox" tabindex="-1"><div class="pt"><b>(선택) LLM 사용 준비</b><span>문제점·개선방안 문단을 AI가 쓰게 하려면 서버에 API 키와 접근 코드가 설정돼 있어야 해요</span></div></li>
+      </ul>
+      <div class="callout"><span class="ci">💡</span><div>정확한 현장조사 자료가 아직 없다면 <b>"샘플 불러오기"</b>로 먼저 흐름을 체험해 보세요. 샘플은 1,500세대 가상 단지예요.</div></div>
+    </section>
+
+    <section id="steps">
+      <h2><span class="no">2</span>5단계 입력 방법</h2>
+      <div class="step-guide">
+        <div class="sg"><div class="n">1</div><div>
+          <h3>사업 개요</h3>
+          <p>사업명·주소·세대수는 필수예요. 건축 연면적을 넣으면 평가 대상 여부와 공간적 범위가 바로 판정돼요. 증축·용도변경·복합용도·약식 평가는 "사업 유형" 영역에서 선택해요. 사업기간·건폐율·용적률 등 <b>사업의 개요 필수 항목</b>도 여기서 입력해요.</p>
+          <p class="tips">비우면: 연면적이 없으면 판정 불가로 표시되고 공간적 범위는 최소 구간으로 임시 적용돼요. 개요 항목은 보고서에 [기재 필요]로 남아요.</p></div></div>
+        <div class="sg"><div class="n">2</div><div>
+          <h3>주차</h3>
+          <p>주택형별 전용면적과 세대수를 넣으면 주택건설기준 규정(특별시)으로 <b>법정 주차대수</b>를 계산해요. 계획 주차대수를 넣으면 법정의 130% 상한과 비교하고, 주차수요 원단위를 직접 넣으면 임시값을 대신해요.</p>
+          <p class="tips">세대수 합계가 1단계의 세대수와 같아야 해요. 원단위를 비우면 임시값(잠정)으로 계산돼요.</p></div></div>
+        <div class="sg"><div class="n">3</div><div>
+          <h3>교차로</h3>
+          <p><b>편람 상세 입력</b>(권장)은 차로 구성·좌우회전·현시로 도로용량편람 절차대로 계산해요. <b>간이 입력</b>은 포화교통류율을 직접 넣어요. 배경교통량 증가율과 방면별 사업 교통량 배분율을 넣으면 사업 미시행·시행·개선 후 3단계를 비교해요. "편람 예제 채우기"로 형식을 볼 수 있어요.</p>
+          <p class="tips">교차로를 비워도 분석은 돼요(LOS·도표는 빠져요). 입력한 현시의 녹색시간 합이 신호주기를 넘으면 오류로 알려줘요.</p></div></div>
+        <div class="sg"><div class="n">4</div><div>
+          <h3>대행업체·표지</h3>
+          <p>평가대행업체, 책임자, 사업자, 접수번호·관리번호, 심의종류(신규·변경·약식), 심의진행여부를 넣으면 서울시 표지 양식(별표 11)과 제출문·끝문이 채워져요. 참여전문인력도 여기서 추가해요.</p>
+          <p class="tips">서명·날인은 이 도구가 대신하지 않아요. 비운 칸은 [기재 필요]로 남아요.</p></div></div>
+        <div class="sg"><div class="n">5</div><div>
+          <h3>확인·실행</h3>
+          <p>입력 요약을 확인하고 <b>분석 실행</b>을 눌러요. "실제 LLM 사용"을 켜면 문제점·개선방안 문단을 AI가 쓰지만 호출 비용이 들고, 켜지 않으면 그 자리가 자리표시로 남아요.</p>
+          <p class="tips">결과를 본 뒤 "입력 수정"으로 돌아가 값을 바꿔 다시 실행할 수 있어요.</p></div></div>
+      </div>
+    </section>
+
+    <section id="result">
+      <h2><span class="no">3</span>결과 읽는 법</h2>
+      <p>결과 대시보드 위쪽의 지표 카드는 핵심 결론이고, 탭에서 자세한 근거를 볼 수 있어요.</p>
+      <div class="legend-grid">
+        <div class="legend-item"><span class="badge ok">이상 없음</span><p>지침의 정량 기준을 만족하거나 해당 조건이 아니에요.</p></div>
+        <div class="legend-item"><span class="badge bad">검토 필요</span><p>지침이 검토를 요구하는 조건에 해당해요. 예: 계획 주차대수가 법정의 130% 초과.</p></div>
+        <div class="legend-item"><span class="badge warn">입력 필요</span><p>판정에 필요한 값이 없어서 추측하지 않고 비워 뒀어요.</p></div>
+        <div class="legend-item"><span class="badge warn">기재 필요</span><p>사업의 개요 필수 항목 중 사람이 채워야 하는 칸이에요.</p></div>
+        <div class="legend-item"><span class="badge warn">임시 · 잠정</span><p>임시 원단위로 계산한 수치예요. 확정 결과가 아니에요.</p></div>
+        <div class="legend-item"><span class="badge info">v/c</span><p>교통량 대 용량 비. 1.0 이상이면 용량을 넘어요. 1 미만이어도 지체는 생겨요.</p></div>
+      </div>
+      <h3>서비스수준(LOS) 등급 — 신호교차로 평균 제어지체</h3>
+      <div class="scroll"><table>
+        <tr><th>등급</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th><th>FF</th><th>FFF</th></tr>
+        <tr><th>지체(초/대)</th><td>≤15</td><td>≤30</td><td>≤50</td><td>≤70</td><td>≤100</td><td>≤220</td><td>≤340</td><td>&gt;340</td></tr>
+      </table></div>
+      <p class="small muted" style="margin-top:8px">도로용량편람(2013) &lt;표 8-2&gt; 기준이에요.</p>
+    </section>
+
+    <section id="rules">
+      <h2><span class="no">4</span>판정 기준 한눈에</h2>
+      <div class="scroll"><table class="kv">
+        <tr><th>평가 대상(신축 아파트)</th><td>건축 연면적 <b>50,000㎡ 이상</b> (서울시 교통영향평가에 관한 조례 별표)</td></tr>
+        <tr><th>시간적 범위</th><td>준공 후 <b>1년, 3년</b> (약식 평가 시 1년)</td></tr>
+        <tr><th>공간적 범위</th><td>대상 기준 4배 미만 → 반경 1.0km·교차로 4개 이상 / 4~8배 → 1.5km·8개 / 8배 이상 → 2.0km·12개</td></tr>
+        <tr><th>복합용도</th><td>Swa = Σ(용도별 면적 ÷ 용도별 대상규모) × 10,000 이 <b>10,000 이상</b>이면 대상</td></tr>
+        <tr><th>증축</th><td>평가받고 준공된 건축물을 증축해 합계가 기존의 <b>30% 초과</b>이거나 증축 규모가 대상규모 이상이면 대상(준공+증축 면적 합산)</td></tr>
+        <tr><th>약식 평가</th><td>평가를 실시한 사업지구의 건축물, 또는 변경심의 대상 중 완료 후 7년 미경과·증축 규모가 대상범위 미만인 경우(지침 제23조). 선택해야 적용돼요</td></tr>
+        <tr><th>법정 주차대수</th><td>전용 85㎡ 이하 <b>75㎡당 1대</b>, 초과 <b>65㎡당 1대</b>, 세대당 최소 1대(60㎡ 이하 0.7대), 끝수 올림 (주택건설기준 등에 관한 규정 제27조, 특별시)</td></tr>
+        <tr><th>계획 주차대수</th><td>법정의 <b>130%</b>를 넘지 않게 계획하도록 권장, 초과 시 사유 명시(지침 별표 2)</td></tr>
+        <tr><th>진출입구</th><td>첨두시 중방향 발생교통량이 시간당 <b>400대 이상</b>이면 2개소 이상·편도 2차로 이상 검토</td></tr>
+      </table></div>
+    </section>
+
+    <section id="limits">
+      <h2><span class="no">5</span>사람이 해야 할 일</h2>
+      <div class="callout warn"><span class="ci">⚠️</span><div>이 도구는 <b>초안</b>을 만들어요. 아래는 도구가 만들지 못해서 사람이 채우거나 확인해야 해요.</div></div>
+      <ul>
+        <li><b>원단위 교체</b> — 유발교통량·주차수요 원단위는 임시값이에요. 유사 건축물 조사와 관련 자료로 산출하거나 직접 입력하세요.</li>
+        <li><b>현장조사 자료</b> — 교통량 조사(평일·토·일), 주변가로 첨두시·1일 교통량, 교통시설 현황.</li>
+        <li><b>도면</b> — 종합개선안, 토지이용현황, 도로단면도(축척·방위 포함, 서울시 지침 제24조).</li>
+        <li><b>첨부 서류</b> — 개인별 작업일정표, 대행비용 산정근거, 용역계약서 사본.</li>
+        <li><b>서명·날인</b> — 책임자·대행업체 대표자.</li>
+        <li><b>AI 문단 검토</b> — LLM이 쓴 문단은 계산 결과와 대조했지만 사람이 반드시 읽고 확인해야 해요.</li>
+      </ul>
+    </section>
+
+    <section id="sources">
+      <h2><span class="no">6</span>근거 자료</h2>
+      <ul>
+        <li>교통영향평가 지침 (국토교통부 고시 제2021-317호, 2021.4.13)</li>
+        <li>서울특별시 교통영향평가 수립지침 (서울특별시고시 제2017-43호, 2017.2.16 전면개정)</li>
+        <li>서울특별시 교통영향평가에 관한 조례 · 도시교통정비 촉진법 시행령 별표 1</li>
+        <li>도로용량편람 (국토교통부, 2013) 제8장 신호교차로</li>
+        <li>주택건설기준 등에 관한 규정 제27조 · 서울특별시 주차장 설치 및 관리 조례 별표 2</li>
+      </ul>
+      <div class="cta-row" style="margin-top:30px"><a class="btn primary lg" href="/app">준비됐어요, 시작하기 →</a><a class="btn lg" href="/">소개로 돌아가기</a></div>
+    </section>
+  </article>
+</main>
+{% endblock %}

@@ -1,214 +1,6 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>교통영향평가 초안 자동화</title>
-<style>
-  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2230; --muted:#667085; --line:#d8dce5; --accent:#2457d6;
-          --ok:#1a7f4b; --warn:#a15c00; --bad:#b42318; --warnbg:#fff7e6; --errbg:#fef3f2; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#12151c; --card:#1b2029; --ink:#e8ebf2; --muted:#9aa3b5; --line:#2e3646; --accent:#7ea2ff;
-            --ok:#5fd09a; --warn:#f0b35a; --bad:#ff8a80; --warnbg:#2a2415; --errbg:#2d1a18; }
-  }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif; }
-  .banner { background:#7a1f1f; color:#fff; padding:8px 16px; font-size:13px; text-align:center; }
-  main { max-width:960px; margin:0 auto; padding:16px; }
-  h1 { font-size:22px; margin:8px 0 2px; } h2 { font-size:18px; margin:0 0 8px; } h3 { font-size:16px; margin:0 0 8px; }
-  .muted { color:var(--muted); } .small { font-size:13px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin:14px 0; }
-  .err { background:var(--errbg); border-color:var(--bad); } .warnbox { background:var(--warnbg); border-color:var(--warn); }
-  fieldset { border:1px solid var(--line); border-radius:8px; margin:10px 0; padding:10px 12px; }
-  legend { font-weight:600; padding:0 6px; }
-  label { display:block; font-size:13px; color:var(--muted); margin-bottom:2px; }
-  input, select { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); font:inherit; }
-  input:focus, select:focus, button:focus { outline:2px solid var(--accent); outline-offset:1px; }
-  .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); }
-  .row { display:grid; gap:8px; grid-template-columns:repeat(5, 1fr) auto; align-items:end; margin:6px 0; }
-  .btn { padding:8px 14px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); cursor:pointer; font:inherit; text-decoration:none; display:inline-block; }
-  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  .btn.small { padding:4px 10px; font-size:13px; } .btn:disabled { opacity:.6; cursor:wait; }
-  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
-  .badge { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; border:1px solid currentColor; }
-  .badge.ok { color:var(--ok); } .badge.warn { color:var(--warn); } .badge.bad { color:var(--bad); }
-  table { border-collapse:collapse; width:100%; font-size:14px; } th, td { border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
-  th { background:rgba(127,127,127,.12); font-weight:600; }
-  .scroll { overflow-x:auto; } .resulthead { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
-  pre.doc { white-space:pre-wrap; font-size:12.5px; max-height:480px; overflow:auto; }
-  code { font-size:12.5px; }
-  .staff { display:grid; gap:8px; grid-template-columns:repeat(5, 1fr) auto; align-items:end; margin:6px 0; }
-  .roles { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:4px 12px; font-size:13px; }
-  .roles label { display:inline-flex; gap:4px; align-items:center; color:var(--ink); margin:0; }
-  .roles input { width:auto; }
-  .modes { display:grid; gap:6px; margin:8px 0 12px; } .modes label { display:flex; gap:8px; align-items:flex-start; color:var(--ink); font-size:14px; }
-  .modes input { width:auto; margin-top:4px; }
-  [hidden] { display:none !important; }
-  .dix { border-width:2px; } .dph { display:grid; gap:8px; grid-template-columns:repeat(3, 1fr) auto; align-items:end; margin:4px 0; }
-  .dap { border:1px dashed var(--line); border-radius:8px; padding:10px; margin:10px 0; }
-  .g3 { display:grid; gap:8px; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); margin:6px 0; }
-  .chk { display:flex; gap:6px; align-items:center; color:var(--ink); font-size:13px; margin:0; } .chk input { width:auto; }
-  @media (max-width: 720px) { .row, .staff { grid-template-columns:1fr 1fr; } .dph { grid-template-columns:1fr 1fr auto; } .dph > div:nth-child(3) { display:none; } }
-</style>
-</head>
-<body>
-<div class="banner" role="note">{{ disclaimer }}</div>
-<main>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-    <h1>교통영향평가 초안 자동화</h1>
-    {% if auth_enabled %}<button type="button" class="btn small" id="logout">로그아웃</button>{% endif %}
-  </div>
-  <p class="muted">서울시 공동주택(아파트) 교통영향평가서 <b>초안</b>을 만듭니다. 지침 기준표·계산식은 원문을 확인해 반영했고, 원단위는 현재 <b>임시값</b>입니다.</p>
-
-  <form id="form" class="card" autocomplete="off">
-    <h2>1. 사업 개요</h2>
-    <div class="grid">
-      <div><label for="name">사업명 *</label><input id="name" required maxlength="100"></div>
-      <div><label for="address">위치(주소) *</label><input id="address" required maxlength="200"></div>
-      <div><label for="households">세대수 *</label><input id="households" type="number" min="1" step="1" required></div>
-      <div><label for="gfa">건축 연면적(㎡) — 평가 대상 판정 기준</label><input id="gfa" type="number" min="1" step="any" placeholder="예: 180000"></div>
-      <div><label for="floors">최고 층수</label><input id="floors" type="number" min="1" step="1"></div>
-    </div>
-
-    <details id="ovBox" style="margin-top:10px">
-      <summary><b>사업의 개요 필수 기재 항목</b> <span class="muted small">(서울시 수립지침 제24조③ — 비우면 보고서에 [기재 필요]로 남음)</span></summary>
-      <div class="grid" style="margin-top:8px">
-        <div><label for="ov_laws">인·허가 관련 법규</label><input id="ov_laws" maxlength="200" placeholder="예: 건축법 제11조, 주택법 제15조"></div>
-        <div><label for="ov_period">사업기간</label><input id="ov_period" maxlength="100"></div>
-        <div><label for="ov_plan">도시계획사항</label><input id="ov_plan" maxlength="200" placeholder="용도지역·지구단위계획 등"></div>
-        <div><label for="ov_use">실제 용도</label><input id="ov_use" maxlength="100" placeholder="비우면 공동주택(아파트)"></div>
-        <div><label for="ov_site">대지면적(㎡)</label><input id="ov_site" type="number" min="1" step="any"></div>
-        <div><label for="ov_bcr">건폐율(%)</label><input id="ov_bcr" type="number" min="0" max="100" step="any"></div>
-        <div><label for="ov_far">용적률(%)</label><input id="ov_far" type="number" min="0" max="2000" step="any"></div>
-        <div><label for="ov_base">지하 층수</label><input id="ov_base" type="number" min="0" step="1"></div>
-        <div><label for="ov_ent">사업지 진출입구 수</label><input id="ov_ent" type="number" min="0" step="1"></div>
-        <div><label for="ov_pself">자주식 주차(대)</label><input id="ov_pself" type="number" min="0" step="1"></div>
-        <div><label for="ov_pmech">기계식 주차(대)</label><input id="ov_pmech" type="number" min="0" step="1"></div>
-        <div><label for="ov_pacc">장애인 주차(대)</label><input id="ov_pacc" type="number" min="0" step="1"></div>
-        <div><label for="ov_pwom">여성 주차(대)</label><input id="ov_pwom" type="number" min="0" step="1"></div>
-        <div><label for="ov_pcmp">경차 주차(대)</label><input id="ov_pcmp" type="number" min="0" step="1"></div>
-        <div><label for="ov_ptour">관광버스 주차(대)</label><input id="ov_ptour" type="number" min="0" step="1"></div>
-      </div>
-      <p class="muted small">사업시행자 연락처는 아래 4번의 사업자 이름·전화를 씁니다. 자주식·기계식, 장애인·여성·경차·관광버스는 해당 없으면 0을 입력하세요.</p>
-    </details>
-
-    <details id="parkBox" style="margin-top:10px">
-      <summary><b>주차 (법정 주차대수·계획 대수)</b> <span class="muted small">(비워 두면 “입력 필요”로 표시)</span></summary>
-      <p class="muted small" style="margin:6px 0">주택형별 전용면적·세대수를 입력하면 주택건설기준 등에 관한 규정 제27조(특별시)로 법정 주차대수를 계산합니다. 세대수 합계가 위 세대수와 같아야 합니다.</p>
-      <div id="unitTypes"></div>
-      <button type="button" class="btn small" id="addUnit">+ 주택형 추가</button>
-      <div class="grid" style="margin-top:8px">
-        <div><label for="planned">계획 주차대수(건축계획)</label><input id="planned" type="number" min="0" step="1"></div>
-        <div><label for="pdem">세대당 주차수요 원단위(대/세대)</label><input id="pdem" type="number" min="0" step="any" placeholder="비우면 임시값"></div>
-        <div><label for="psrc">원단위 자료 출처</label><input id="psrc" maxlength="300" placeholder="유사 건축물 조사·관련 자료"></div>
-      </div>
-    </details>
-
-    <details id="kindBox" style="margin-top:10px">
-      <summary><b>사업 유형·복합용도·약식 평가</b> <span class="muted small">(신축 단일 아파트면 열지 않아도 됩니다)</span></summary>
-      <div class="grid" style="margin-top:8px">
-        <div><label for="kind">사업 유형</label>
-          <select id="kind"><option value="new">신축</option><option value="expansion">증축</option><option value="use_change">용도변경(변경 후 공동주택)</option></select></div>
-        <div class="expOnly"><label for="exGfa">기존 준공 연면적(㎡)</label><input id="exGfa" type="number" min="1" step="any"></div>
-        <div class="expOnly"><label for="exAdd">이번 증축 연면적(㎡)</label><input id="exAdd" type="number" min="1" step="any"></div>
-        <div class="expOnly"><label for="exPrior">이전 증축 합계(㎡)</label><input id="exPrior" type="number" min="0" step="any" value="0"></div>
-        <div class="chgOnly"><label for="exEval">기존 건축물이 교통영향평가를 받고 준공?</label>
-          <select id="exEval"><option value="">모름</option><option value="yes">예</option><option value="no">아니오</option></select></div>
-        <div><label for="inDistrict">평가를 실시한 사업지구 안에 건축?</label>
-          <select id="inDistrict"><option value="">모름</option><option value="yes">예</option><option value="no">아니오</option></select></div>
-        <div class="chgOnly"><label for="yrs">기존 사업 심의·완료 후 경과(년)</label><input id="yrs" type="number" min="0" step="any"></div>
-        <div style="align-self:end"><label><input type="checkbox" id="reqAbbr"> 약식 교통영향평가 적용 가능하면 적용</label></div>
-      </div>
-      <p class="muted small" id="kindHelp">증축은 위 ‘건축 연면적’ 대신 기존·증축 면적으로 판정합니다(별표 비고 5). 약식은 지침 제23조 요건을 충족할 때만 적용됩니다.</p>
-      <div style="margin-top:8px"><b>복합용도</b> <span class="muted small">— 같은 건축물·부지의 공동주택 외 용도(신축·용도변경에만 적용, Swa 판정). 유발교통량은 공동주택만 계산합니다.</span></div>
-      <div id="uses"></div>
-      <button type="button" class="btn small" id="addUse">+ 용도 추가</button>
-    </details>
-
-    <h2 style="margin-top:18px">2. 분석 조건</h2>
-    <div class="grid">
-      <div><label for="growth">배경교통량 연 증가율(%)</label><input id="growth" type="number" step="any" min="-20" max="50" placeholder="예: 2"></div>
-    </div>
-    <p class="muted small">비워 두면 0%로 가정하지 않고 “입력 필요”로 표시합니다(지침 제11조②).</p>
-
-    <h2 style="margin-top:18px">3. 분석 대상 교차로 <span class="muted small">(현장조사 교통량 — 없으면 비워도 됩니다)</span></h2>
-    <div class="modes" role="radiogroup" aria-label="입력 방식">
-      <label><input type="radio" name="mode" value="detail" checked> <b>편람 상세 입력</b> — 차로 구성·좌우회전·현시로 도로용량편람 절차대로 계산(권장)</label>
-      <label><input type="radio" name="mode" value="simple"> <b>간이 입력</b> — 포화교통류율을 직접 입력(연동·보정계수 미반영)</label>
-    </div>
-    <div id="detailMode">
-      <div id="dintersections"></div>
-      <div class="actions">
-        <button type="button" class="btn small" id="addDix">+ 상세 교차로 추가</button>
-        <button type="button" class="btn small" id="sampleHcm">편람 예제 채우기(EB 접근로)</button>
-      </div>
-      <p class="muted small">교통량은 시간 교통량(vph)이고 PHF로 첨두 15분 유율로 환산됩니다. 녹색시간은 <b>녹색신호시간 G</b>(유효녹색은 G−0.3초)이며 현시 시간(G+황색)의 합이 신호주기를 넘으면 안 됩니다.
-        좌회전 CASE는 편람 표 8-4 기준입니다. <b>미지원:</b> CASE 5, 우회전 2차로 이상 공용.</p>
-    </div>
-    <div id="simpleMode" hidden>
-      <div id="intersections"></div>
-      <button type="button" class="btn small" id="addIx">+ 교차로 추가</button>
-    </div>
-
-    <details style="margin-top:18px">
-      <summary><b>4. 평가대행업체·참여인력 (선택)</b> — 표지·제출문·끝문에 들어갑니다. 비워 두면 [기재 필요]로 남습니다.</summary>
-      <div class="grid" style="margin-top:10px">
-        <div><label for="ag_name">평가대행업체</label><input id="ag_name"></div>
-        <div><label for="ag_regno">등록번호</label><input id="ag_regno"></div>
-        <div><label for="ag_regdate">등록일</label><input id="ag_regdate" placeholder="YYYY-MM-DD"></div>
-        <div><label for="ag_lead">책임자(평가대행자)</label><input id="ag_lead"></div>
-        <div><label for="ag_submit">제출일</label><input id="ag_submit" placeholder="YYYY-MM-DD"></div>
-        <div><label for="ag_period">용역 수행기간</label><input id="ag_period"></div>
-        <div><label for="ag_printer">인쇄업체</label><input id="ag_printer"></div>
-        <div><label for="ag_concept">구상용역 수행업체</label><input id="ag_concept"></div>
-        <div><label for="ag_addr">업체 주소</label><input id="ag_addr"></div>
-        <div><label for="ag_phone">업체 전화</label><input id="ag_phone"></div>
-        <div><label for="cl_name">사업자</label><input id="cl_name"></div>
-        <div><label for="cl_addr">사업자 주소</label><input id="cl_addr"></div>
-        <div><label for="cl_phone">사업자 전화</label><input id="cl_phone"></div>
-      </div>
-      <p class="muted small" style="margin:10px 0 2px"><b>표지 양식</b>(서울시 수립지침 별표 11)</p>
-      <div class="grid">
-        <div><label for="ag_receipt">접수번호</label><input id="ag_receipt"></div>
-        <div><label for="ag_mgmt">관리번호</label><input id="ag_mgmt"></div>
-        <div><label for="ag_rtype">심의종류</label><select id="ag_rtype"><option value="new">신규(생략 가능)</option><option value="change">변경</option><option value="abbreviated">약식</option></select></div>
-        <div><label for="ag_rcount">변경 횟수</label><input id="ag_rcount" type="number" min="0" step="1" value="0"></div>
-        <div><label for="ag_stage">심의진행여부</label><select id="ag_stage"><option value="main">본보고서(최초 접수)</option><option value="pre_review">사전검토 보완서</option><option value="decision">심의의결보완서</option><option value="re_review">보완심의 보고서</option></select></div>
-        <div><label for="ag_scount">보완심의 횟수</label><input id="ag_scount" type="number" min="0" step="1" value="0"></div>
-      </div>
-      <div style="margin-top:10px">
-        <label style="display:inline-flex;gap:6px;align-items:center;color:var(--ink)"><input type="checkbox" id="ag_cost" style="width:auto"> 대행비용 산정근거 첨부</label>
-        <label style="display:inline-flex;gap:6px;align-items:center;color:var(--ink);margin-left:14px"><input type="checkbox" id="ag_contract" style="width:auto"> 용역계약서 사본 첨부</label>
-      </div>
-      <h3 style="margin-top:14px">참여전문인력</h3>
-      <div id="staff"></div>
-      <button type="button" class="btn small" id="addStaff">+ 인력 추가</button>
-    </details>
-
-    <fieldset>
-      <legend>문장 작성 방식</legend>
-      <label style="display:flex;gap:8px;align-items:flex-start;color:var(--ink);font-size:14px">
-        <input type="checkbox" id="use_llm" style="width:auto;margin-top:4px" {% if not llm_available %}disabled{% endif %}>
-        <span>실제 LLM으로 문제점·개선방안 문단 작성
-          {% if llm_available %}<span class="muted small">({{ llm_provider }} · {{ llm_model }}) — 호출 5회 이상, 비용이 발생합니다.</span>
-          {% else %}<span class="muted small">서버에 LLM 키가 설정되지 않아 사용할 수 없습니다(해당 문단은 자리표시로 남습니다).</span>{% endif %}</span>
-      </label>
-      {% if needs_code %}
-      <div style="margin-top:8px;max-width:260px"><label for="access_code">접근 코드(실제 LLM 사용 시 필요)</label><input id="access_code" type="password" autocomplete="off"></div>
-      {% endif %}
-    </fieldset>
-
-    <div class="actions">
-      <button type="submit" class="btn primary" id="submit">분석 실행</button>
-      <button type="button" class="btn" id="sample">샘플 입력 채우기(간이)</button>
-    </div>
-  </form>
-
-  <div id="result" aria-live="polite"></div>
-</main>
-
-<script>
-const ROLES = {{ roles | tojson }};
+/* 분석 마법사 — 입력 폼 로직(교차로·주차·복합용도·대행업체) + 단계 이동 + 결과 대시보드 전환 */
+const BOOT = JSON.parse(document.getElementById("boot").textContent);
+const ROLES = BOOT.roles;
 const $ = (id) => document.getElementById(id);
 
 function ixHtml() {
@@ -283,7 +75,7 @@ const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v)
 const triState = (v) => (v === "yes" ? true : v === "no" ? false : null);
 
 // 사업 유형·복합용도
-const USES = {{ uses | tojson }};
+const USES = BOOT.uses;
 function addUse() {
   const row = document.createElement("div"); row.className = "use-row";
   row.style.cssText = "display:grid;gap:8px;grid-template-columns:2fr 1fr auto;align-items:end;margin:6px 0";
@@ -307,7 +99,7 @@ function addUnit(d) {
 $("addUnit").onclick = () => addUnit();
 function fillSampleParking() {  // 1,500세대 샘플: 59㎡ 300 + 84㎡ 900 + 114㎡ 300
   $("unitTypes").innerHTML = ""; [[59, 300], [84, 900], [114, 300]].forEach(addUnit);
-  $("planned").value = 2000; $("parkBox").open = true;
+  $("planned").value = 2000;
 }
 function syncKind() {
   const k = $("kind").value;
@@ -378,20 +170,6 @@ function buildPayload() {
   if (anyText) p.agency = ag;
   return p;
 }
-
-$("form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const btn = $("submit"), out = $("result");
-  btn.disabled = true; btn.textContent = "분석 중…"; out.innerHTML = "";
-  try {
-    const res = await fetch("/ui/analyze", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(buildPayload()) });
-    out.innerHTML = await res.text();
-    out.scrollIntoView({ behavior: "smooth", block: "start" });
-  } catch (err) {
-    out.innerHTML = '<div class="card err" role="alert"><h2>서버에 연결할 수 없습니다</h2><p>잠시 후 다시 시도하세요.</p></div>';
-  } finally { btn.disabled = false; btn.textContent = "분석 실행"; }
-});
 
 $("sample").onclick = () => {
   document.querySelector('input[name="mode"][value="simple"]').checked = true; setMode();  // 간이 입력 샘플
@@ -590,6 +368,179 @@ addIx();
 addDix();
 setMode();
 if ($("logout")) $("logout").onclick = async () => { await fetch("/api/logout", { method: "POST" }); location.href = "/login"; };
-</script>
-</body>
-</html>
+
+/* ═════════ 단계별 마법사 · 결과 대시보드 전환 ═════════ */
+const LAST = 5;
+let step = 1;
+const panels = [...document.querySelectorAll(".panel[data-step]")];
+const stepBtns = [...document.querySelectorAll(".st-item")];
+const val1 = (id) => { const e = $(id); return e && String(e.value).trim() !== ""; };
+const n1 = (id) => (val1(id) ? Number(($(id)).value) : null);
+const nf = (x, d = 0) => Number(x).toLocaleString("ko-KR", { maximumFractionDigits: d });
+
+const FIELDS = {
+  1: ["name", "address", "households", "gfa", "floors", "ov_laws", "ov_period", "ov_plan", "ov_use", "ov_site", "ov_bcr", "ov_far", "ov_base", "ov_ent"],
+  4: ["ag_name", "ag_regno", "ag_regdate", "ag_lead", "ag_submit", "ag_period", "ag_printer", "ag_concept", "ag_addr", "ag_phone", "cl_name", "cl_addr", "cl_phone", "ag_receipt", "ag_mgmt"],
+};
+const PARK_DETAIL = ["ov_pself", "ov_pmech", "ov_pacc", "ov_pwom", "ov_pcmp", "ov_ptour"];
+
+function unitRows() {
+  return [...document.querySelectorAll(".unit-row")].map(r => ({ a: Number(r.querySelector(".ut-area").value), h: Number(r.querySelector(".ut-hh").value) }))
+    .filter(u => u.a > 0 && u.h > 0);
+}
+function ixCount() {
+  const detail = document.querySelector('input[name="mode"]:checked').value === "detail";
+  return [...document.querySelectorAll(detail ? ".dix" : ".ix")].filter(el => {
+    const name = el.querySelector(detail ? ".dx-name" : ".ix-name").value.trim();
+    return name || [...el.querySelectorAll(detail ? ".dp-vl,.dp-vt,.dp-vr" : ".ap-vol")].some(i => Number(i.value) > 0);
+  }).length;
+}
+function fillInfo(s) {
+  if (s === 1) { const f = FIELDS[1].filter(val1).length; return { n: f, text: `${f}/${FIELDS[1].length} 입력`, done: val1("name") && val1("address") && val1("households") }; }
+  if (s === 2) { const u = unitRows().length, d = PARK_DETAIL.filter(val1).length; return { n: u + d + (val1("planned") ? 1 : 0), text: u ? `주택형 ${u}종 · 세부 ${d}/6` : "주택형 미입력", done: u > 0 }; }
+  if (s === 3) { const c = ixCount(); return { n: c, text: c ? `교차로 ${c}개` : "교차로 미입력(선택)", done: c > 0 }; }
+  if (s === 4) { const f = FIELDS[4].filter(val1).length + document.querySelectorAll(".st-name").length; return { n: f, text: f ? `${f}개 입력` : "미입력(선택)", done: f > 0 }; }
+  return { n: 0, text: "요약 후 분석", done: false };
+}
+function refreshFill() {
+  stepBtns.forEach(b => {
+    const s = Number(b.dataset.step), info = fillInfo(s);
+    const small = b.querySelector("[data-fill]"); if (small) small.textContent = info.text;
+    b.classList.toggle("done", s !== step && info.done && s < LAST);
+  });
+}
+function showStep(n, noScroll) {
+  step = Math.max(1, Math.min(LAST, n));
+  panels.forEach(p => { p.hidden = Number(p.dataset.step) !== step; if (!p.hidden) { p.style.animation = "none"; p.offsetHeight; p.style.animation = ""; } });
+  stepBtns.forEach(b => b.classList.toggle("active", Number(b.dataset.step) === step));
+  $("prevBtn").style.visibility = step === 1 ? "hidden" : "visible";
+  $("nextBtn").hidden = step === LAST;
+  $("progTxt").textContent = `${step} / ${LAST} 단계`; $("progBar").style.width = (step / LAST * 100) + "%";
+  if (step === LAST) renderSummary();
+  refreshFill(); updateHints();
+  if (!noScroll) window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function validateStep1() {
+  const bad = ["name", "address", "households"].filter(id => !val1(id) || (id === "households" && Number($(id).value) < 1));
+  ["name", "address", "households"].forEach(id => $(id).classList.toggle("invalid", bad.includes(id)));
+  if (bad.length) { showStep(1); $(bad[0]).focus(); $(bad[0]).reportValidity && $(bad[0]).reportValidity(); return false; }
+  return true;
+}
+$("nextBtn").onclick = () => { if (step === 1 && !validateStep1()) return; showStep(step + 1); };
+$("prevBtn").onclick = () => showStep(step - 1);
+stepBtns.forEach(b => b.onclick = () => showStep(Number(b.dataset.step)));
+$("form").addEventListener("keydown", (e) => {   // Enter로 실수로 제출되지 않게: 다음 단계로
+  if (e.key === "Enter" && e.target.tagName === "INPUT" && !["checkbox", "radio"].includes(e.target.type)) { e.preventDefault(); if (step < LAST) $("nextBtn").click(); }
+});
+let raf = 0;
+const scheduleRefresh = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { refreshFill(); updateHints(); $("name").classList.remove("invalid"); }); };
+$("form").addEventListener("input", scheduleRefresh);
+$("form").addEventListener("change", scheduleRefresh);
+new MutationObserver(scheduleRefresh).observe($("form"), { childList: true, subtree: true });
+
+/* ── 실시간 미리보기 (최종 판정·계산은 서버가 한다) ── */
+const SEOUL_THRESHOLD = 50000;
+function setHint(id, cls, icon, title, text) {
+  const el = $(id); el.className = "hint-card" + (cls ? " " + cls : "");
+  el.querySelector(".hi").textContent = icon; el.querySelector("b").textContent = title; el.querySelector("p").textContent = text;
+}
+function legalParking(units) {
+  let byArea = 0, byHh = 0;
+  units.forEach(u => { byArea += u.a * u.h / (u.a <= 85 ? 75 : 65); byHh += u.h * (u.a <= 60 ? 0.7 : 1); });
+  return Math.ceil(Math.max(byArea, byHh) - 1e-9);
+}
+function eligibilityPreview() {
+  const kind = $("kind").value;
+  if (kind === "expansion") {
+    const ex = n1("exGfa"), add = n1("exAdd");
+    if (!ex || !add) return null;
+    const added = add + (n1("exPrior") || 0), ratio = added / ex, total = ex + added;
+    const target = ratio > 0.3 || added >= SEOUL_THRESHOLD;
+    return { target, short: `증축 합계 기존의 ${nf(ratio * 100)}%`, text: `증축 합계 ${nf(added)}㎡는 기존의 ${nf(ratio * 100)}% — ${target ? "30% 초과 또는 대상규모 이상이라 대상(준공+증축 합산 " + nf(total) + "㎡)" : "30% 이하이고 대상규모 미만이라 신규 평가 대상 아님"} (기존 건축물이 평가를 받고 준공된 경우 기준).` };
+  }
+  const g = n1("gfa"); if (!g) return null;
+  const mult = g / SEOUL_THRESHOLD;
+  return { target: g >= SEOUL_THRESHOLD, short: `연면적 ${nf(g)}㎡ · 기준의 ${nf(mult, 1)}배`, text: `연면적 ${nf(g)}㎡ — 서울시 기준 50,000㎡의 ${nf(mult, 1)}배로 ${g >= SEOUL_THRESHOLD ? "대상" : "대상 아님"}입니다. (복합용도 합산은 분석할 때 판정해요)` };
+}
+function updateHints() {
+  if (!$("hintElig")) return;
+  const e = eligibilityPreview();
+  if (!e) setHint("hintElig", "", "⚖️", "대상 여부 미리보기", "연면적을 입력하면 서울시 기준(아파트 50,000㎡)과 비교해 알려드려요.");
+  else setHint("hintElig", e.target ? "ok" : "warn", e.target ? "✅" : "⚠️", e.target ? "평가 대상이에요" : "평가 대상이 아닐 수 있어요", e.text);
+  const u = unitRows();
+  if (!u.length) { setHint("hintUnits", "", "🅿️", "법정 주차대수 미리보기", "주택형을 입력하면 예상 법정 대수를 보여드려요. (최종 계산은 분석 시 서버에서 해요.)"); return; }
+  const hh = u.reduce((s, x) => s + x.h, 0), H = n1("households"), legal = legalParking(u), pl = n1("planned");
+  if (H && hh !== H) { setHint("hintUnits", "bad", "❗", "세대수 합계가 맞지 않아요", `주택형별 세대수 합계 ${nf(hh)}세대 ≠ 사업 개요 세대수 ${nf(H)}세대 — 분석이 거부돼요.`); return; }
+  let t = `예상 법정 주차대수 ${nf(legal)}대 (주택건설기준 규정 제27조, 특별시)`, cls = "";
+  if (pl != null) { const pct = pl / legal * 100; t += ` · 계획 ${nf(pl)}대는 법정의 ${nf(pct)}%`; if (pl < legal) { cls = "bad"; t += " — 법정 미달"; } else if (pct > 130) { cls = "warn"; t += " — 권장 상한 130% 초과(사유 명시 필요)"; } else cls = "ok"; }
+  setHint("hintUnits", cls, "🅿️", `법정 ${nf(legal)}대`, t);
+}
+
+/* ── 확인 요약 ── */
+function sumCard(small, b, span) {
+  const d = document.createElement("div"); d.className = "sum";
+  [["small", small], ["b", b], ["span", span]].forEach(([tag, txt]) => { const e = document.createElement(tag); e.textContent = txt; d.appendChild(e); });
+  return d;
+}
+function renderSummary() {
+  const g = $("summary"); g.innerHTML = "";
+  const e = eligibilityPreview(), u = unitRows(), c = ixCount();
+  g.append(
+    sumCard("사업", $("name").value.trim() || "(사업명 없음)", `${$("address").value.trim() || "주소 미입력"} · ${val1("households") ? nf(n1("households")) + "세대" : "세대수 미입력"}`),
+    sumCard("대상 판정(미리보기)", e ? (e.target ? "대상" : "대상 아님") : "연면적 필요", e ? e.short : "연면적을 입력하면 판정돼요"),
+    sumCard("법정 주차(예상)", u.length ? nf(legalParking(u)) + "대" : "주택형 필요", val1("planned") ? `계획 ${nf(n1("planned"))}대` : "계획 주차대수 미입력"),
+    sumCard("교차로", c ? c + "개" : "없음", c ? (document.querySelector('input[name="mode"]:checked').value === "detail" ? "편람 상세 입력" : "간이 입력") : "LOS·도표 없이 분석해요"),
+    sumCard("개요·표지", `${FIELDS[1].slice(5).filter(val1).length + FIELDS[4].filter(val1).length}칸 입력`, "비운 칸은 보고서에 [기재 필요]로 남아요"),
+  );
+}
+
+/* ── 샘플·초기화 ── */
+function setVals(map) { Object.entries(map).forEach(([id, v]) => { const el = $(id); if (el) el.value = v; }); }
+$("sampleAll").onclick = () => {
+  document.querySelector('input[name="mode"][value="detail"]').checked = true; setMode();
+  $("kind").value = "new"; syncKind();
+  setVals({ name: "샘플 단지", address: "서울특별시 OO구 OO동 123", households: 1500, gfa: 180000, floors: 25, growth: 2,
+    ov_laws: "건축법 제11조, 주택법 제15조", ov_period: "2027.1 ~ 2029.12", ov_plan: "제3종일반주거지역", ov_site: 30000, ov_bcr: 22, ov_far: 250,
+    ov_base: 3, ov_ent: 2, ov_pself: 1800, ov_pmech: 200, ov_pacc: 40, ov_pwom: 60, ov_pcmp: 80, ov_ptour: 0,
+    ag_name: "OO교통엔지니어링", ag_lead: "홍길동", cl_name: "OO주택(주)", cl_phone: "02-000-0000", ag_receipt: "2026-0001" });
+  $("sampleHcm").onclick();
+  showStep(5);
+};
+$("resetAll").onclick = () => {
+  if (!confirm("입력한 내용을 모두 지울까요?")) return;
+  $("form").reset();
+  ["unitTypes", "uses", "staff", "dintersections", "intersections"].forEach(id => $(id).innerHTML = "");
+  addIx(); addDix(); setMode(); syncKind(); showStep(1);
+};
+
+/* ── 실행·결과 전환 ── */
+const wizardView = $("wizardView"), resultView = $("resultView"), out = $("result");
+function toResult() { wizardView.hidden = true; resultView.hidden = false; window.scrollTo({ top: 0 }); }
+function toWizard() { resultView.hidden = true; wizardView.hidden = false; window.scrollTo({ top: 0 }); showStep(5, true); }
+const LOADING = `<div class="card loading" role="status"><div class="spinner"></div><h3>분석 중이에요…</h3>
+  <p class="muted">대상 판정 → 교통량·서비스수준 계산 → 문서 조립 → 지침 점검 순서로 진행해요.<br>보통 몇 초, 실제 LLM을 켠 경우 수십 초가 걸려요.</p></div>`;
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!validateStep1()) return;
+  const btn = $("submit"), old = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 분석 중…';
+  out.innerHTML = LOADING; toResult();
+  try {
+    const res = await fetch("/ui/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildPayload()) });
+    out.innerHTML = await res.text();
+  } catch (err) {
+    out.innerHTML = '<div class="card err" role="alert"><h2>서버에 연결할 수 없습니다</h2><p>잠시 후 다시 시도하세요.</p><button type="button" class="btn" data-action="edit">← 입력 수정</button></div>';
+  } finally { btn.disabled = false; btn.innerHTML = old; window.scrollTo({ top: 0 }); }
+});
+out.addEventListener("click", (e) => {
+  const t = e.target.closest(".tab, [data-tab-link]"), a = e.target.closest("[data-action]");
+  if (a && a.dataset.action === "edit") return toWizard();
+  if (a && a.dataset.action === "print") return window.print();
+  if (!t) return;
+  const id = t.dataset.tab || t.dataset.tabLink;
+  out.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === id)));
+  out.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.dataset.pane === id));
+  const tabs = out.querySelector(".tabs"); if (tabs) tabs.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+showStep(1, true);

@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 from pydantic import ValidationError
@@ -19,6 +20,7 @@ from app.charts import chart_rows, render_svg
 from app.config import get_settings
 from app.docx_export import build_docx
 from app.eligibility import use_table
+from app.reflection import load_checklist
 from app.service import AnalyzeRequest, ServiceError, run_analysis, summarize
 from app.state import PARTICIPATION_ROLES
 from app.storage import Database, LlmRunLog, SqliteJobStore
@@ -45,6 +47,9 @@ templates = Jinja2Templates(directory=str(BASE / "templates"))
 templates.env.globals["render_svg"] = lambda spec: Markup(render_svg(spec))  # 계산 결과로만 만든 SVG(라벨은 escape됨)
 templates.env.globals["chart_rows"] = chart_rows
 
+OPEN_PAGES = {"/", "/guide"}  # 소개·안내 페이지는 로그인 없이 볼 수 있다(분석·다운로드는 로그인 필요)
+app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
+
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -58,7 +63,7 @@ SECURITY_HEADERS = {
 async def guard(request: Request, call_next):
     s = get_settings()
     path = request.url.path
-    if path in auth.PUBLIC_PATHS:
+    if path in auth.PUBLIC_PATHS or path in OPEN_PAGES or path.startswith("/static/"):
         user = auth.current_user(request, s) or auth.ANON
     else:
         user = auth.current_user(request, s)
@@ -96,7 +101,7 @@ async def health():
 async def login_page(request: Request):
     s = get_settings()
     if not s.auth_enabled or auth.current_user(request, s):
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/app", status_code=303)
     return templates.TemplateResponse(request, "login.html", {"disclaimer": DISCLAIMER})
 
 
@@ -132,14 +137,25 @@ async def api_logout():
 
 # ── 화면·분석 ──
 @app.get("/", response_class=HTMLResponse)
+async def landing(request: Request):
+    items = load_checklist()["items"]
+    stats = {"checklist": len(items), "sections": sum(1 for i in items if i["check"] == "key"), "uses": len(use_table())}
+    return templates.TemplateResponse(request, "landing.html", {"disclaimer": DISCLAIMER, "page": "home", "stats": stats})
+
+
+@app.get("/guide", response_class=HTMLResponse)
+async def guide(request: Request):
+    return templates.TemplateResponse(request, "guide.html", {"disclaimer": DISCLAIMER, "page": "guide"})
+
+
+@app.get("/app", response_class=HTMLResponse)
 async def index(request: Request):
     s = get_settings()
-    return templates.TemplateResponse(request, "index.html", {
-        "disclaimer": DISCLAIMER, "llm_available": not s.llm_mock_mode, "llm_provider": s.llm_provider,
-        "llm_model": s.model, "needs_code": bool(s.app_access_code), "roles": PARTICIPATION_ROLES,
-        "auth_enabled": s.auth_enabled,
-        "uses": [{"key": k, "label": v["label"], "metric": v["metric"]}
-                 for k, v in use_table().items() if k != "apartment"],
+    return templates.TemplateResponse(request, "app.html", {
+        "disclaimer": DISCLAIMER, "page": "app", "llm_available": not s.llm_mock_mode, "llm_provider": s.llm_provider,
+        "llm_model": s.model, "needs_code": bool(s.app_access_code), "auth_enabled": s.auth_enabled,
+        "boot": {"roles": PARTICIPATION_ROLES,
+                 "uses": [{"key": k, "label": v["label"], "metric": v["metric"]} for k, v in use_table().items() if k != "apartment"]},
     })
 
 

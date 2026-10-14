@@ -47,8 +47,8 @@ def test_health_reports_llm_unavailable_without_key(client):
     assert j["status"] == "ok" and j["llm"]["available"] is False
 
 
-def test_index_page_has_form_and_disclaimer(client):
-    r = client.get("/")
+def test_app_page_has_form_and_disclaimer(client):
+    r = client.get("/app")
     assert r.status_code == 200
     for needle in ('id="households"', 'id="gfa"', 'id="addIx"', "교통기술사", "분석 실행"):
         assert needle in r.text, needle

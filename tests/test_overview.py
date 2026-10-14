@@ -141,7 +141,7 @@ def test_api_and_ui_roundtrip(monkeypatch, tmp_path):
     assert rows["대지면적"]["value"] == "30,000㎡" and rows["사업지 진출입구 수"]["value"] == "2개소"
     html = c.post("/ui/analyze", json=body).text
     assert "사업의 개요 필수 기재 항목" in html and "기재 필요" in html
-    page = c.get("/").text
+    page = c.get("/app").text
     assert "ov_site" in page and "ag_receipt" in page and "별표 11" in page
     bad = c.post("/api/analyze", json={**body, "agency": {"review_type": "weird"}})
     assert bad.status_code == 422
