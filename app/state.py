@@ -52,6 +52,13 @@ class AgencyInfo(BaseModel):
     staff: list[StaffMember] = Field(default_factory=list)
     cost_basis_attached: bool = False  # 대행비용 산정근거 첨부 여부
     contract_copy_attached: bool = False  # 용역계약서 사본 첨부 여부
+    # 서울 수립지침 별표 11 표지양식
+    receipt_no: str = ""  # 접수번호
+    management_no: str = ""  # 관리번호
+    review_type: Literal["new", "change", "abbreviated"] = "new"  # 심의종류(신규는 생략 가능)
+    change_count: int = Field(default=0, ge=0)  # 변경 심의 횟수
+    review_stage: Literal["main", "pre_review", "decision", "re_review"] = "main"  # 심의진행여부
+    stage_count: int = Field(default=0, ge=0)  # 보완심의 횟수
 
 
 class ReportState(BaseModel):

@@ -15,6 +15,26 @@ class UseArea(BaseModel):
     area_m2: float = Field(gt=0)  # 해당 용도의 건축 연면적(㎡) 또는 부지면적(동·식물원 등 부지면적 기준 용도)
 
 
+class ProjectOverview(BaseModel):
+    """사업의 개요 필수 기재 항목(서울 수립지침 제24조③)에서 이 도구가 계산하지 못하는 값. 비우면 보고서에 [기재 필요]로 남는다."""
+
+    permit_laws: str = Field(default="", max_length=200)  # 인·허가 관련 법규
+    project_period: str = Field(default="", max_length=100)  # 사업기간
+    urban_planning: str = Field(default="", max_length=200)  # 도시계획사항(용도지역·지구단위계획 등)
+    actual_use: str = Field(default="", max_length=100)  # 실제 용도
+    site_area_m2: float | None = Field(default=None, gt=0)  # 대지면적
+    building_coverage_pct: float | None = Field(default=None, ge=0, le=100)  # 건폐율
+    floor_area_ratio_pct: float | None = Field(default=None, ge=0, le=2000)  # 용적률
+    basement_floors: int | None = Field(default=None, ge=0, le=30)  # 지하 층수
+    entrances: int | None = Field(default=None, ge=0, le=50)  # 사업지 진출입구 수
+    parking_self: int | None = Field(default=None, ge=0)  # 자주식 주차대수
+    parking_mechanical: int | None = Field(default=None, ge=0)  # 기계식 주차대수
+    parking_accessible: int | None = Field(default=None, ge=0)  # 장애인 주차
+    parking_women: int | None = Field(default=None, ge=0)  # 여성 주차
+    parking_compact: int | None = Field(default=None, ge=0)  # 경차 주차
+    parking_tour_bus: int | None = Field(default=None, ge=0)  # 관광버스 주차
+
+
 class UnitType(BaseModel):
     """주택형(전용면적) 구성. 법정 주차대수 산정에 쓴다."""
 
@@ -40,6 +60,8 @@ class ProjectInput(BaseModel):
     expansion_gfa_m2: float | None = Field(default=None, gt=0)  # 증축: 이번 증축 연면적
     prior_expansion_gfa_m2: float = Field(default=0.0, ge=0)  # 증축: 이전에 이미 증축한 연면적 합계
     existing_evaluated: bool | None = None  # 기존 건축물이 교통영향평가를 받고 준공됐는지
+
+    overview: ProjectOverview = Field(default_factory=ProjectOverview)  # 사업의 개요 필수 기재(서울 지침 제24조③)
 
     # 주차 (지침 제15조, 별표 2 8.가⒁)
     unit_types: list[UnitType] = Field(default_factory=list)  # 주택형별 전용면적·세대수(합계가 세대수와 같아야 함)

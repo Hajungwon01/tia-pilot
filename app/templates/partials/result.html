@@ -58,6 +58,19 @@
   {% endif %}
 </div>
 
+<div class="card">
+  <h3>사업의 개요 필수 기재 항목 <span class="muted small">(서울시 수립지침 제24조③)</span></h3>
+  {% set miss = s.overview | selectattr("source", "equalto", "missing") | list %}
+  <p class="small">{% if miss %}<span class="badge warn">{{ miss | length }}개 기재 필요</span> 빈 항목은 보고서에 [기재 필요]로 남습니다.{% else %}<span class="badge ok">모두 기재</span>{% endif %}</p>
+  <div class="scroll"><table>
+    {% for r in s.overview %}
+    <tr><th style="width:34%">{{ r.label }}</th>
+      <td>{% if r.value is none %}<span class="badge warn">기재 필요</span>{% if r.note %} <span class="muted small">{{ r.note }}</span>{% endif %}
+        {% else %}{{ r.value }}{% if r.note %} <span class="muted small">({{ r.note }})</span>{% endif %}{% endif %}</td></tr>
+    {% endfor %}
+  </table></div>
+</div>
+
 {% if s.parking %}
 {% set k = s.parking %}
 <div class="card">

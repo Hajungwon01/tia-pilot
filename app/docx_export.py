@@ -16,6 +16,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
 from app.core.llm_client import MOCK_PREFIX
+from app.overview import overview_rows
 from app.docx_forms import add_byeolji1, add_closing_pages, add_submission_page, cover_agency_lines
 from app.facts import review_sections
 from app.charts import SERIES_COLORS, build_charts, docx_bar_rows
@@ -189,6 +190,30 @@ def add_table(doc: Document, header: list[str], rows: list[list[str]]) -> None:
     doc.add_paragraph()
 
 
+def add_overview_table(doc: Document, state: ReportState) -> None:
+    """서울 수립지침 제24조③ 사업의 개요 필수 기재 항목. 비어 있는 항목은 빨간 [기재 필요]로 남긴다."""
+    cap = doc.add_paragraph()
+    _set_font(cap.add_run("사업의 개요 필수 기재 항목 (서울시 수립지침 제24조③)"), size=10, bold=True)
+    cap.paragraph_format.keep_with_next = True
+    t = doc.add_table(rows=1, cols=2)
+    t.style = "Table Grid"
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for c, h in zip(t.rows[0].cells, ["항목", "내용"]):
+        c.text = ""
+        _set_font(c.paragraphs[0].add_run(h), size=9.5, bold=True)
+        _shade(c, "E8ECF4")
+    for r in overview_rows(state):
+        a, b = t.add_row().cells
+        a.text = b.text = ""
+        _set_font(a.paragraphs[0].add_run(r["label"]), size=9.5)
+        if r["value"] is None:
+            _set_font(b.paragraphs[0].add_run("[기재 필요]" + (f" — {r['note']}" if r["note"] else "")), size=9.5, bold=True,
+                      color=(0xC0, 0x00, 0x00))
+        else:
+            _set_font(b.paragraphs[0].add_run(r["value"] + (f" ({r['note']})" if r["note"] else "")), size=9.5)
+    doc.add_paragraph()
+
+
 def add_figure(doc: Document, spec: dict, no: int) -> None:
     """그림: 외부 이미지·폰트 없이 '█' 텍스트 막대 표로 그린다(Word에서 바로 편집 가능, 값은 모든 행에 병기)."""
     header, rows = docx_bar_rows(spec)
@@ -315,7 +340,7 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
         ["세대수", f"{pr.households:,}세대"],
         ["건축 연면적", f"{pr.gross_floor_area_m2:,.0f}㎡" if pr.gross_floor_area_m2 else "미입력"],
         ["작성일", today.isoformat()],
-        *cover_agency_lines(state.agency),  # 지침 제24조⑤: 겉표지에 평가대행자·평가대행업체
+        *cover_agency_lines(state.agency, bool((state.scope or {}).get("abbreviated")), f"{today.year}년 {today.month}월"),  # 서울 지침 별표 11 표지양식
     ])
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -368,6 +393,8 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
                 add_text_block(doc, body, highlight=key in flagged)
                 if key in flagged:
                     _placeholder(doc, "⚠ 검토 필요(계산 결과와 불일치 가능): " + "; ".join(flagged[key]))
+            if key == "intro.overview":
+                add_overview_table(doc, state)
         # 장 끝 표
         if num == "2" and state.los:
             doc.add_heading("현황 LOS 분석표", level=3)

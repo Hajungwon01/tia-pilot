@@ -147,7 +147,7 @@ def test_missing_agency_info_is_blank_not_invented(doc):
     t = all_text(doc)
     assert "[기재 필요]" in t
     cover = {r.cells[0].text: r.cells[1].text for r in doc.tables[0].rows[1:]}
-    assert cover["평가대행업체"] == "[기재 필요]" and cover["평가대행자(책임자)"] == "[기재 필요]"
+    assert cover["평가기관(평가대행업체)"] == "[기재 필요]" and cover["평가책임자(평가대행자)"] == "[기재 필요]"
     assert "(서명 또는 날인)" in t and "대신하지 않습니다" in t  # 서명·날인은 사람 몫
 
 
@@ -156,7 +156,7 @@ def test_agency_info_appears_on_cover_submission_and_closing(tmp_path):
     st.agency = full_agency()
     d = Document(export_docx(st, tmp_path / "a.docx"))
     cover = {r.cells[0].text: r.cells[1].text for r in d.tables[0].rows[1:]}
-    assert cover["평가대행업체"] == "OO교통엔지니어링" and cover["평가대행자(책임자)"] == "홍길동"
+    assert cover["평가기관(평가대행업체)"] == "OO교통엔지니어링" and cover["평가책임자(평가대행자)"] == "홍길동"
     t = all_text(d)
     assert "제2020-001호" in t and "2026-11-20" in t and "OO인쇄" in t and "OO설계" in t
     assert "첨부함" in t and "[첨부 필요]" in t  # 가격 산출근거 첨부 / 용역계약서 사본 미첨부

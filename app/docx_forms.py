@@ -36,10 +36,29 @@ def _para(doc: Document, text: str, size=10.5, bold=False, align=None, color=Non
 
 # ── 제24조 서식 ───────────────────────────────────────────────
 
-def cover_agency_lines(a: AgencyInfo | None) -> list[list[str]]:
-    """겉표지: 평가대행자와 평가대행업체(제24조⑤)."""
+REVIEW_TYPES = {"new": "신규", "change": "변경", "abbreviated": "약식"}
+REVIEW_STAGES = {"main": "본보고서(최초 접수)", "pre_review": "사전검토 보완서", "decision": "심의의결보완서", "re_review": "보완심의 보고서"}
+
+
+def cover_color(a: AgencyInfo, abbreviated: bool = False) -> str:
+    """서울 지침 별표 11: 본보고서 최초 파란색·변경 녹색, 사전검토보완서·보완심의보고서 흰색, 심의의결보완서 주황색."""
+    if a.review_stage == "main":
+        return "녹색" if a.review_type == "change" else "파란색"
+    return {"decision": "주황색"}.get(a.review_stage, "흰색")
+
+
+def cover_agency_lines(a: AgencyInfo | None, abbreviated: bool = False, year_month: str = "") -> list[list[str]]:
+    """겉표지: 서울 수립지침 별표 11 양식(접수번호·관리번호·심의종류·심의진행여부·연도월·평가기관·평가책임자·사업자명)과
+    평가대행자·평가대행업체(제24조⑧)."""
     a = a or AgencyInfo()
-    return [["평가대행업체", val(a.agency_name)], ["평가대행자(책임자)", val(a.lead_name)]]
+    rtype = "약식" if abbreviated else REVIEW_TYPES[a.review_type]
+    if rtype == "변경" and a.change_count:
+        rtype += f"({a.change_count}회)"
+    stage = REVIEW_STAGES[a.review_stage] + (f"({a.stage_count}회)" if a.review_stage == "re_review" and a.stage_count else "")
+    return [["접수번호", val(a.receipt_no)], ["관리번호", val(a.management_no)],
+            ["심의종류", rtype + (" (신규는 생략 가능)" if rtype == "신규" else "")], ["심의진행여부", stage],
+            ["연도·월", year_month], ["평가기관(평가대행업체)", val(a.agency_name)], ["평가책임자(평가대행자)", val(a.lead_name)],
+            ["사업자명", val(a.client_name)], ["표지색(인쇄 시)", cover_color(a)]]
 
 
 def add_submission_page(doc: Document, state: ReportState) -> None:

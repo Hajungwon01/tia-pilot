@@ -70,6 +70,28 @@
       <div><label for="floors">최고 층수</label><input id="floors" type="number" min="1" step="1"></div>
     </div>
 
+    <details id="ovBox" style="margin-top:10px">
+      <summary><b>사업의 개요 필수 기재 항목</b> <span class="muted small">(서울시 수립지침 제24조③ — 비우면 보고서에 [기재 필요]로 남음)</span></summary>
+      <div class="grid" style="margin-top:8px">
+        <div><label for="ov_laws">인·허가 관련 법규</label><input id="ov_laws" maxlength="200" placeholder="예: 건축법 제11조, 주택법 제15조"></div>
+        <div><label for="ov_period">사업기간</label><input id="ov_period" maxlength="100"></div>
+        <div><label for="ov_plan">도시계획사항</label><input id="ov_plan" maxlength="200" placeholder="용도지역·지구단위계획 등"></div>
+        <div><label for="ov_use">실제 용도</label><input id="ov_use" maxlength="100" placeholder="비우면 공동주택(아파트)"></div>
+        <div><label for="ov_site">대지면적(㎡)</label><input id="ov_site" type="number" min="1" step="any"></div>
+        <div><label for="ov_bcr">건폐율(%)</label><input id="ov_bcr" type="number" min="0" max="100" step="any"></div>
+        <div><label for="ov_far">용적률(%)</label><input id="ov_far" type="number" min="0" max="2000" step="any"></div>
+        <div><label for="ov_base">지하 층수</label><input id="ov_base" type="number" min="0" step="1"></div>
+        <div><label for="ov_ent">사업지 진출입구 수</label><input id="ov_ent" type="number" min="0" step="1"></div>
+        <div><label for="ov_pself">자주식 주차(대)</label><input id="ov_pself" type="number" min="0" step="1"></div>
+        <div><label for="ov_pmech">기계식 주차(대)</label><input id="ov_pmech" type="number" min="0" step="1"></div>
+        <div><label for="ov_pacc">장애인 주차(대)</label><input id="ov_pacc" type="number" min="0" step="1"></div>
+        <div><label for="ov_pwom">여성 주차(대)</label><input id="ov_pwom" type="number" min="0" step="1"></div>
+        <div><label for="ov_pcmp">경차 주차(대)</label><input id="ov_pcmp" type="number" min="0" step="1"></div>
+        <div><label for="ov_ptour">관광버스 주차(대)</label><input id="ov_ptour" type="number" min="0" step="1"></div>
+      </div>
+      <p class="muted small">사업시행자 연락처는 아래 4번의 사업자 이름·전화를 씁니다. 자주식·기계식, 장애인·여성·경차·관광버스는 해당 없으면 0을 입력하세요.</p>
+    </details>
+
     <details id="parkBox" style="margin-top:10px">
       <summary><b>주차 (법정 주차대수·계획 대수)</b> <span class="muted small">(비워 두면 “입력 필요”로 표시)</span></summary>
       <p class="muted small" style="margin:6px 0">주택형별 전용면적·세대수를 입력하면 주택건설기준 등에 관한 규정 제27조(특별시)로 법정 주차대수를 계산합니다. 세대수 합계가 위 세대수와 같아야 합니다.</p>
@@ -144,6 +166,15 @@
         <div><label for="cl_name">사업자</label><input id="cl_name"></div>
         <div><label for="cl_addr">사업자 주소</label><input id="cl_addr"></div>
         <div><label for="cl_phone">사업자 전화</label><input id="cl_phone"></div>
+      </div>
+      <p class="muted small" style="margin:10px 0 2px"><b>표지 양식</b>(서울시 수립지침 별표 11)</p>
+      <div class="grid">
+        <div><label for="ag_receipt">접수번호</label><input id="ag_receipt"></div>
+        <div><label for="ag_mgmt">관리번호</label><input id="ag_mgmt"></div>
+        <div><label for="ag_rtype">심의종류</label><select id="ag_rtype"><option value="new">신규(생략 가능)</option><option value="change">변경</option><option value="abbreviated">약식</option></select></div>
+        <div><label for="ag_rcount">변경 횟수</label><input id="ag_rcount" type="number" min="0" step="1" value="0"></div>
+        <div><label for="ag_stage">심의진행여부</label><select id="ag_stage"><option value="main">본보고서(최초 접수)</option><option value="pre_review">사전검토 보완서</option><option value="decision">심의의결보완서</option><option value="re_review">보완심의 보고서</option></select></div>
+        <div><label for="ag_scount">보완심의 횟수</label><input id="ag_scount" type="number" min="0" step="1" value="0"></div>
       </div>
       <div style="margin-top:10px">
         <label style="display:inline-flex;gap:6px;align-items:center;color:var(--ink)"><input type="checkbox" id="ag_cost" style="width:auto"> 대행비용 산정근거 첨부</label>
@@ -301,6 +332,12 @@ function buildPayload() {
       in_evaluated_district: triState($("inDistrict").value),
       years_since_completion: kind === "new" ? null : num($("yrs").value),
       request_abbreviated: $("reqAbbr").checked,
+      overview: { permit_laws: $("ov_laws").value.trim(), project_period: $("ov_period").value.trim(),
+        urban_planning: $("ov_plan").value.trim(), actual_use: $("ov_use").value.trim(), site_area_m2: num($("ov_site").value),
+        building_coverage_pct: num($("ov_bcr").value), floor_area_ratio_pct: num($("ov_far").value),
+        basement_floors: num($("ov_base").value), entrances: num($("ov_ent").value), parking_self: num($("ov_pself").value),
+        parking_mechanical: num($("ov_pmech").value), parking_accessible: num($("ov_pacc").value),
+        parking_women: num($("ov_pwom").value), parking_compact: num($("ov_pcmp").value), parking_tour_bus: num($("ov_ptour").value) },
       unit_types: [...document.querySelectorAll(".unit-row")].map(r => ({ exclusive_area_m2: num(r.querySelector(".ut-area").value),
         households: num(r.querySelector(".ut-hh").value) })).filter(u => u.exclusive_area_m2 !== null && u.households !== null),
       planned_parking_spaces: num($("planned").value), parking_demand_per_household: num($("pdem").value),
@@ -329,13 +366,15 @@ function buildPayload() {
     lead_name: $("ag_lead").value, submission_date: $("ag_submit").value, service_period: $("ag_period").value,
     printer: $("ag_printer").value, concept_design_firm: $("ag_concept").value, agency_address: $("ag_addr").value,
     agency_phone: $("ag_phone").value, client_name: $("cl_name").value, client_address: $("cl_addr").value,
-    client_phone: $("cl_phone").value, cost_basis_attached: $("ag_cost").checked, contract_copy_attached: $("ag_contract").checked,
+    client_phone: $("cl_phone").value, receipt_no: $("ag_receipt").value, management_no: $("ag_mgmt").value,
+    review_type: $("ag_rtype").value, change_count: num($("ag_rcount").value) || 0, review_stage: $("ag_stage").value,
+    stage_count: num($("ag_scount").value) || 0, cost_basis_attached: $("ag_cost").checked, contract_copy_attached: $("ag_contract").checked,
     staff: [...document.querySelectorAll(".st")].map(s => ({ name: s.querySelector(".st-name").value.trim(),
       affiliation: s.querySelector(".st-aff").value, position: s.querySelector(".st-pos").value,
       period: s.querySelector(".st-per").value, qualification: s.querySelector(".st-qual").value,
       roles: [...s.querySelectorAll(".st-role:checked")].map(c => c.value), registered: s.querySelector(".st-reg").checked }))
       .filter(s => s.name) };
-  const anyText = Object.entries(ag).some(([k, v]) => (typeof v === "string" && v.trim()) || (k === "staff" && v.length) || v === true);
+  const anyText = Object.entries(ag).some(([k, v]) => !["review_type", "review_stage"].includes(k) && ((typeof v === "string" && v.trim()) || (k === "staff" && v.length) || v === true || (typeof v === "number" && v > 0)));
   if (anyText) p.agency = ag;
   return p;
 }

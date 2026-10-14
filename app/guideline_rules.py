@@ -53,6 +53,15 @@ def parking_cap(state: ReportState) -> tuple[str, str]:
     return OK, f"계획 {planned:,}대는 법정 {legal:,}대의 {planned / legal * 100:.0f}%로 권장 상한 {pct:g}% 이내{note}"
 
 
+def overview_required(state: ReportState) -> tuple[str, str]:
+    """서울 지침 제24조③ 사업의 개요 필수 기재 항목이 모두 채워졌는지."""
+    from app.overview import missing_overview
+    miss = missing_overview(state)
+    if miss:
+        return ATTENTION, f"필수 기재 {len(miss)}개 미기재: " + ", ".join(miss)
+    return OK, "제24조③ 필수 기재 항목이 모두 채워짐"
+
+
 def external_improvement(state: ReportState) -> tuple[str, str]:
     """서울 별표 1 4.아: 사업지구 외부 교통개선은 수립 대상사업 범위의 10배 이상 건축물만 작성한다."""
     mult = ((state.scope or {}).get("eligibility") or {}).get("multiple")
@@ -67,6 +76,7 @@ RULES: dict[str, Callable[[ReportState], tuple[str, str]]] = {
     "entrance_400": entrance_400,
     "parking_cap": parking_cap,
     "external_improvement": external_improvement,
+    "overview_required": overview_required,
 }
 
 
