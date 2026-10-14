@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from app import auth
 from app.charts import chart_rows, render_svg
 from app.config import get_settings
+from app.counts import CountsError, parse_counts
 from app.docx_export import build_docx
 from app.eligibility import use_table
 from app.reflection import load_checklist
@@ -163,6 +164,28 @@ async def index(request: Request):
 async def api_analyze(req: AnalyzeRequest, request: Request):
     job_id, state = await run_analysis(req, store, limiter, request.state.user)
     return summarize(state, job_id)
+
+
+MAX_COUNTS_BYTES = 2_000_000
+
+
+@app.post("/api/counts/parse")
+async def api_counts_parse(request: Request):
+    """교통량 조사 CSV 본문({"text": "..."})에서 AM·PM 첨두시, PHF, 접근로별 이동류 교통량을 뽑는다(저장하지 않음)."""
+    if int(request.headers.get("content-length") or 0) > MAX_COUNTS_BYTES:
+        return JSONResponse({"detail": "파일이 너무 큽니다(최대 2MB)."}, status_code=413)
+    try:
+        text = (json.loads(await request.body()) or {}).get("text")
+    except (json.JSONDecodeError, AttributeError):
+        return JSONResponse({"detail": "요청 형식이 올바르지 않습니다."}, status_code=400)
+    if not isinstance(text, str) or not text.strip():
+        return JSONResponse({"detail": "CSV 내용이 비어 있습니다."}, status_code=400)
+    if len(text.encode()) > MAX_COUNTS_BYTES:
+        return JSONResponse({"detail": "파일이 너무 큽니다(최대 2MB)."}, status_code=413)
+    try:
+        return parse_counts(text)
+    except CountsError as e:
+        return JSONResponse({"detail": str(e)}, status_code=422)
 
 
 def _format_validation(e: ValidationError) -> list[str]:

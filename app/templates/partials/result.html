@@ -196,6 +196,25 @@
   </div>
   {% endif %}
 
+  {% set sc_any = namespace(n=0) %}
+  {% for name, years in s.stages.items() %}{% for y, st in years.items() %}{% if st.scenarios and st.scenarios.scenarios %}{% set sc_any.n = sc_any.n + 1 %}{% endif %}{% endfor %}{% endfor %}
+  {% if sc_any.n %}
+  <div class="card">
+    <h3>개선 시나리오 (검토 후보)</h3>
+    <p class="muted small">사업 시행 시 교차로에 신호 조정·차로 증설·전용 좌회전 차로를 적용해 편람 엔진으로 다시 계산한 값이에요. <b>물리적 개선은 용지·도로폭·교통안전을 검토하기 전의 후보</b>예요.</p>
+    <div class="scroll"><table>
+      <tr><th>교차로</th><th>목표년도</th><th>구분</th><th>개선안</th><th>평균지체</th><th>LOS</th><th>지체 감소</th><th>변경 내용</th></tr>
+      {% for name, years in s.stages.items() %}{% for y, st in years.items() %}{% if st.scenarios %}{% for sc in st.scenarios.scenarios %}
+      <tr>
+        <td>{{ name }}</td><td>준공 후 {{ y }}년</td><td>{{ "물리적 개선" if sc.physical else "신호 조정" }}</td><td>{{ sc.label }}</td>
+        <td>{{ "%.1f"|format(sc.avg_delay) }}초</td><td>{{ sc.grade }}</td><td>{{ "%.1f"|format(sc.delay_reduction) }}초</td>
+        <td>{{ sc.changes|join("; ") if sc.changes else "-" }}</td>
+      </tr>
+      {% endfor %}{% endif %}{% endfor %}{% endfor %}
+    </table></div>
+  </div>
+  {% endif %}
+
   {% for name, v in s.los.items() if v.engine == "hcm_detailed" %}
   <details class="card" open>
     <summary><b>{{ name }}</b> 차로군별 분석(도로용량편람) — 교차로 평균지체 {{ "%.1f"|format(v.avg_delay) }}초/대, LOS {{ v.grade }}{% if v.critical_vc %} · 임계 v/c {{ "%.2f"|format(v.critical_vc) }}{% endif %}</summary>

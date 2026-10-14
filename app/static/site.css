@@ -121,6 +121,10 @@ legend { font-weight: 800; padding: 0 8px; font-size: 13px; color: var(--brand);
 .roles { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
 .roles label, .chk { display: inline-flex; gap: 7px; align-items: center; color: var(--ink); font-weight: 500; margin: 0; font-size: 13.5px; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.csvbox { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; margin-top: 12px; padding: 10px 12px; border: 1px dashed var(--line-2); border-radius: var(--radius-sm); background: var(--surface); }
+.csvbox .csv-out { flex-basis: 100%; display: grid; gap: 6px; justify-items: start; }
+.csvbox .csv-out:empty { display: none; }
+.csv-bad { color: var(--bad); font-weight: 600; }
 details > summary { cursor: pointer; font-weight: 700; list-style: none; padding: 4px 0; } details > summary::-webkit-details-marker { display: none; }
 details > summary::before { content: "▸"; display: inline-block; margin-right: 8px; color: var(--brand); transition: transform .2s; }
 details[open] > summary::before { transform: rotate(90deg); }

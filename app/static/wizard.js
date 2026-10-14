@@ -195,6 +195,12 @@ function dixHtml() {
       ${num0("첨두시간계수 PHF", "dx-phf", "0.95", 'min="0.1" max="1"')}
       ${sel("교통량 조사 첨두시", "dx-peak", [["pm", "PM 첨두"], ["am", "AM 첨두"]])}
     </div>
+    <div class="csvbox">
+      <label class="btn small">교통량 조사 CSV 불러오기<input type="file" class="csv-file" accept=".csv,.txt,text/csv" hidden></label>
+      <a class="small" href="/static/count_template.csv" download>CSV 양식 받기</a>
+      <span class="muted small">15분 단위 이동류별 교통량에서 첨두시·PHF·접근로 교통량을 채워요. 엑셀은 CSV로 저장해 올리세요.</span>
+      <div class="csv-out small" role="status" aria-live="polite"></div>
+    </div>
     <h3 style="margin-top:12px">현시 <span class="muted small">(녹색신호시간 G + 황색, 신호 순서대로)</span></h3>
     <div class="dphases"></div>
     <button type="button" class="btn small add-ph">+ 현시 추가</button>
@@ -297,6 +303,7 @@ function addDix(d) {
   el.querySelector(".add-ph").onclick = () => addPhase(el);
   el.querySelector(".add-dap").onclick = () => addDap(el);
   el.querySelector(".del-dix").onclick = () => el.remove();
+  el.querySelector(".csv-file").addEventListener("change", (ev) => loadCounts(el, ev.target));
   if (d) {
     el.querySelector(".dx-name").value = d.name; el.querySelector(".dx-cycle").value = d.cycle;
     el.querySelector(".dx-phf").value = d.phf; el.querySelector(".dx-peak").value = d.peak;
@@ -305,6 +312,62 @@ function addDix(d) {
   return el;
 }
 $("addDix").onclick = () => addDix();
+
+/* ───────── 교통량 조사 CSV 불러오기 (서버가 첨두시·PHF를 계산, 화면은 채우기만) ───────── */
+async function readCsvText(file) {
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(buf); }
+  catch (_) { return new TextDecoder("euc-kr").decode(buf); }  // 엑셀 한국어 CSV(CP949)
+}
+function csvMessage(box, text, bad) {
+  box.textContent = ""; const s = document.createElement("span"); s.textContent = text; if (bad) s.className = "csv-bad"; box.appendChild(s);
+}
+async function loadCounts(dix, input) {
+  const box = dix.querySelector(".csv-out"), file = input.files[0];
+  input.value = "";
+  if (!file) return;
+  if (file.size > 2_000_000) return csvMessage(box, "파일이 너무 커요(최대 2MB).", true);
+  csvMessage(box, "읽는 중…");
+  try {
+    const r = await fetch("/api/counts/parse", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: await readCsvText(file) }) });
+    const j = await r.json();
+    if (!r.ok) return csvMessage(box, j.detail || "읽지 못했어요.", true);
+    showCounts(dix, box, j);
+  } catch (_) { csvMessage(box, "파일을 읽지 못했어요. 다시 시도해 주세요.", true); }
+}
+function showCounts(dix, box, j) {
+  box.textContent = "";
+  const head = document.createElement("div");
+  head.textContent = `접근로 ${j.approaches.length}개(${j.approaches.join(", ")}), ${j.rows}행` + (j.days > 1 ? `, ${j.days}일 평균` : "") + " — 적용할 첨두를 고르세요.";
+  box.appendChild(head);
+  ["am", "pm"].forEach(k => {
+    const pk = j.peaks[k]; if (!pk) return;
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn small csv-apply";
+    b.textContent = `${k.toUpperCase()} 첨두 ${pk.start}~${pk.end} 적용 (합계 ${pk.total.toLocaleString("ko-KR")}대/시, PHF ${pk.phf.toFixed(2)})`;
+    b.onclick = () => applyCounts(dix, box, k, pk);
+    box.appendChild(b);
+  });
+  (j.warnings || []).forEach(w => { const p = document.createElement("div"); p.className = "muted"; p.textContent = "※ " + w; box.appendChild(p); });
+}
+function applyCounts(dix, box, key, pk) {
+  dix.querySelector(".dx-phf").value = pk.phf; dix.querySelector(".dx-peak").value = key;
+  const blank = (ap) => !ap.querySelector(".dp-name").value.trim() && ["dp-vl", "dp-vt", "dp-vr"].every(c => !Number(ap.querySelector("." + c).value));
+  let added = 0;
+  Object.entries(pk.approaches).forEach(([name, v]) => {
+    const vals = { "dp-vl": v.v_left, "dp-vt": v.v_through, "dp-vr": v.v_right, "dp-u": v.u_turn };
+    if (v.heavy_pct !== undefined) vals["dp-heavy"] = v.heavy_pct;
+    const aps = [...dix.querySelectorAll(".dap")];
+    let ap = aps.find(a => a.querySelector(".dp-name").value.trim().toLowerCase() === name.toLowerCase()) || aps.find(blank);
+    if (ap) {
+      ap.querySelector(".dp-name").value = name;
+      Object.entries(vals).forEach(([c, x]) => { ap.querySelector("." + c).value = x; });
+      refreshDix(dix);
+    } else { addDap(dix, { "dp-name": name, ...vals }); added++; }
+  });
+  csvMessage(box, `${key.toUpperCase()} 첨두 ${pk.start}~${pk.end} 교통량과 PHF ${pk.phf.toFixed(2)}를 채웠어요. ` +
+    "차로수·좌회전 CASE·현시는 CSV에 없으니 접근로마다 확인해 주세요" + (added ? `(새로 만든 접근로 ${added}개 포함).` : "."));
+}
 
 function stripNull(o) { Object.keys(o).forEach(k => { if (o[k] === null || o[k] === "" || (typeof o[k] === "number" && Number.isNaN(o[k]))) delete o[k]; }); return o; }
 const val = (ap, c) => ap.querySelector("." + c).value;

@@ -272,6 +272,16 @@ def _stage_rows(state: ReportState) -> list[list[str]]:
     return rows
 
 
+def _scenario_rows(state: ReportState) -> list[list[str]]:
+    rows = []
+    for name, years in state.stages.items():
+        for y, st in years.items():
+            for s in (st.get("scenarios") or {}).get("scenarios", []):
+                rows.append([name, f"준공 후 {y}년", "물리적 개선(검토 후보)" if s["physical"] else "신호 조정", s["label"],
+                             f"{s['avg_delay']:.1f}", s["grade"], f"{s['delay_reduction']:.1f}", "; ".join(s["changes"]) or "-"])
+    return rows
+
+
 def add_toc(doc: Document) -> None:
     """Word 목차 필드(제목 1~3단계). 쪽번호는 Word에서 열어 필드를 갱신해야 채워진다."""
     p = doc.add_paragraph()
@@ -408,6 +418,13 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
             for spec in charts["stage"]:
                 fig_no += 1
                 add_figure(doc, spec, fig_no)
+            sc_rows = _scenario_rows(state)
+            if sc_rows:
+                doc.add_heading("개선 시나리오 비교표 (검토 후보)", level=3)
+                add_table(doc, ["교차로", "목표년도", "구분", "개선안", "평균지체(초/대)", "LOS", "지체 감소(초/대)", "변경 내용"], sc_rows)
+                n = doc.add_paragraph()
+                _set_font(n.add_run("※ 지체 감소는 사업 시행 시(초기 대기차량 미적용) 대비. 물리적 개선은 용지·도로폭·교통안전 검토 전의 "
+                                    "검토 후보이며 시행 가능성은 판단하지 않았습니다."), size=8.5, italic=True, color=(0x70, 0x70, 0x70))
         if num == "3":
             for spec in charts["parking"]:
                 fig_no += 1
@@ -420,7 +437,9 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
             "상세 입력 교차로: 편람 제8장 운영분석 절차(교통량 보정, 차로군 분류, 좌·우회전 직진환산, 노변마찰, 포화교통류율 "
             "식 8-38, 연동계수 PF·초기대기지체 d3 포함)로 계산했고, 편람 풀이 예제로 검증했습니다.",
             "상세 입력 미지원: 좌회전 CASE 5, 우회전 2차로 이상 공용. 현시별 녹색시간은 녹색신호시간 G이며 유효녹색은 G−0.3초입니다.",
-            "상세 입력의 개선 후 분석은 신호주기·황색을 고정하고 현시별 녹색시간을 임계 V/S에 비례해 재배분한 계산입니다(차로 증설 등 미반영).",
+            "상세 입력의 '개선 후'는 신호주기·황색을 고정하고 현시별 녹색시간을 임계 V/S에 비례해 재배분한 계산입니다. "
+            "차로 증설·전용 좌회전 차로 신설·신호주기 조정은 '개선 시나리오'로 편람 엔진을 다시 돌려 비교했으며(주기 탐색 60~180초), "
+            "시행 가능성(용지·도로폭·안전)은 판단하지 않았습니다.",
         ]
     if state.intersections:
         basis += [

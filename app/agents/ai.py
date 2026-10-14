@@ -1,3 +1,4 @@
+from app.improvement import scenario_lines
 from app.state import ReportState
 
 from .base import BaseAgent
@@ -17,7 +18,8 @@ SYSTEM = (
     "당신은 교통영향평가 보고서 초안의 '문제점 및 개선방안' 문단을 쓰는 보조자입니다.\n"
     "[규칙]\n"
     "1. 숫자는 [분석 결과]에 있는 값만 그대로 인용하세요. 새 수치를 만들거나 계산하지 마세요. "
-    "개선방안에도 구체 수치(예: 녹색시간 N초 연장, 차로 N개 증설)를 제안하지 말고 '검토 필요'처럼 방향만 쓰세요.\n"
+    "개선방안에는 [분석 결과]에 없는 구체 수치(예: 녹색시간 N초 연장)를 제안하지 말고 '검토 필요'처럼 방향만 쓰세요. "
+    "[개선 후보]가 있으면 그 후보와 수치만 인용할 수 있고, '물리적 개선'은 용지·도로폭·교통안전 검토 전의 검토 후보라고 밝히세요.\n"
     "2. [분석 결과]에 없는 사실(도로 구조, 차로수, 현재 설계의 적정성, 사고 이력 등)은 단정하지 말고 "
     "'현장 조사 필요'라고 쓰세요.\n"
     "3. 원인을 단정하지 마세요. 특히 용량 초과·포화는 [분석 결과]에서 v/c가 1 이상일 때만 쓸 수 있습니다. "
@@ -63,6 +65,8 @@ class AIAgent(BaseAgent):
                 gw = ", ".join(f"{a} {g:.1f}초" for a, g in st["with"]["greens"].items())
                 lines.append(f"  - 녹색시간 변경: 현행 {gw} → 개선 {gi}")
                 lines.append(f"  - 녹색시간 재배분에 의한 지체 감소: {st['delay_reduction']:.1f}초/대")
+                if st.get("scenarios"):
+                    lines += scenario_lines(n, y, st["scenarios"])
         if not state.los:
             lines.append("교차로 실측 입력 없음")
         if state.warnings:

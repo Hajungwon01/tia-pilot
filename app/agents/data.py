@@ -1,5 +1,6 @@
 from app.hcm_signal import analyze_detailed
 from app.hcm_stages import analyze_stages_detailed
+from app.improvement import scenario_lines
 from app.hcm_stages import summarize as summarize_detailed
 from app.los import analyze_intersection
 from app.parking import assess_parking
@@ -12,7 +13,7 @@ from .base import BaseAgent
 SIMPLE_WARN = ("LOS는 도로용량편람(2013) 기준(<표 8-2>, d1·d2 식 원문 확인)으로 계산하되, 포화교통류율은 입력값을 쓰고 "
                "연동계수(PF=1.0)·초기대기지체(d3=0)는 반영하지 않은 간이 분석")
 DETAILED_WARN = ("LOS는 도로용량편람(2013) 운영분석 절차(차로군 분류·직진환산·보정계수·연동계수·초기대기지체, 식 8-1~8-56)로 계산 "
-                 "— 편람 풀이 예제로 검증. 미지원: 좌회전 CASE 5, 우회전 다차로 공용")
+                 "— 편람 풀이 예제로 검증. 미지원: 좌회전 CASE 5, 우회전 다차로 공용")  # 개선 시나리오는 app/improvement.py
 
 
 class DataAgent(BaseAgent):
@@ -190,4 +191,10 @@ class DataAgent(BaseAgent):
         if state.intersections:
             state.warn("간이 입력의 개선 후 분석은 신호주기 고정·녹색시간 재배분(접근로별 별도 현시 가정)만 반영한 간이 계산")
         if state.detailed_intersections:
-            state.warn("상세 입력의 개선 후 분석은 신호주기·황색 고정, 현시별 녹색시간을 임계 V/S에 비례해 재배분한 계산(차로 증설 등은 미반영)")
+            state.warn("상세 입력의 '개선 후'는 신호주기·황색 고정, 현시별 녹색시간을 임계 V/S에 비례해 재배분한 계산. "
+                       "차로 증설·전용 좌회전 차로·주기 조정은 '개선 시나리오'로 따로 비교(물리적 개선은 용지·도로폭·안전 검토 전의 검토 후보)")
+            lines = []
+            for n in (ix.name for ix in state.detailed_intersections):
+                for y, st in state.stages.get(n, {}).items():
+                    lines += scenario_lines(n, y, st["scenarios"])
+            state.artifacts["improve_scenarios"] = "\n".join(lines)

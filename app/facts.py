@@ -75,12 +75,21 @@ def build_facts(state: ReportState) -> FactTable:
         for a in ix.approaches:
             f.add(a.v_left, a.v_through, a.v_right, a.lanes, a.opposing_through, a.heavy_pct, a.lane_width_m,
                   a.speed_kph, a.link_length_m, a.offset_s, a.left_radius_m)
+            f.add(a.lanes + 1)  # 개선 시나리오의 차로 증설 후 차로수
             f.add(a.project_share_left * 100, a.project_share_through * 100, a.project_share_right * 100)
     if state.background_growth_rate is not None:
         f.add(state.background_growth_rate * 100)
     for years in state.stages.values():
         for y, st in years.items():
             f.add(y, st.get("delay_reduction"))
+            sc = st.get("scenarios")
+            if sc:
+                f.add(sc["base_delay"])
+                f.grades.add(sc["base_grade"])
+                for s in sc["scenarios"]:
+                    f.add(s["avg_delay"], s["delay_reduction"], s["max_vc"], s["critical_vc"], s["cycle"], *s["greens"].values())
+                    f.grades.add(s["grade"])
+                    vcs.append(s["max_vc"])
             for stage in ("without", "with", "improved"):
                 d = st[stage]
                 f.add(d["avg_delay"], d["max_vc"], d.get("critical_vc"))

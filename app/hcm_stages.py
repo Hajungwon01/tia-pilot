@@ -112,11 +112,14 @@ QUEUE_NOTE = ("현황의 초기 대기차량을 장래 단계에 적용하지 �
 
 def analyze_stages_detailed(ix: DetailedIntersection, years: list[int], growth_rate: float,
                             project_peak_total: float) -> dict[int, dict]:
+    from app.improvement import build_scenarios  # 지연 import: improvement가 이 모듈의 함수를 쓴다
+
     out: dict[int, dict] = {}
     for y in years:
         without = scale_intersection(ix, (1 + growth_rate) ** y)
         with_p = add_project_volume(without, project_peak_total)
         improved = reallocate_phase_greens(with_p, analyze_detailed(with_p).phase_y)  # 재배분은 V/S 기준(Qb 무관)
+        scenarios = build_scenarios(with_p)
         stages = {"without": without, "with": with_p, "improved": improved}
         notes: list[str] = []
         queues: dict[str, dict[str, float]] = {}
@@ -135,6 +138,7 @@ def analyze_stages_detailed(ix: DetailedIntersection, years: list[int], growth_r
             "with": summarize(with_p, res_with),
             "improved": summarize(improved, res_imp),
             "notes": notes,
+            "scenarios": scenarios,
         }
         st["delay_reduction"] = st["with"]["avg_delay"] - st["improved"]["avg_delay"]
         out[y] = st
