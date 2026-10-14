@@ -4,6 +4,7 @@ import secrets
 
 from pydantic import BaseModel, Field
 
+from app.charts import build_charts
 from app.config import Settings, get_settings
 from app.core.llm_client import LLMClient
 from app.docx_export import NEEDS_INPUT_LABELS
@@ -144,6 +145,7 @@ def summarize(state: ReportState, job_id: str) -> dict:
         "scope": {k: v for k, v in (state.scope or {}).items() if k != "eligibility"},
         "trips": state.trips.model_dump(mode="json") if state.trips else None,
         "parking": state.parking,
+        "charts": build_charts(state),
         "stages": {n: {str(y): st for y, st in years.items()} for n, years in state.stages.items()},
         "los": state.los,
         "reflection": {"passed": r.get("passed"), "auto_total": r.get("auto_total"),

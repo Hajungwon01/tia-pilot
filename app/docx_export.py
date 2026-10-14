@@ -18,6 +18,7 @@ from docx.shared import Cm, Pt, RGBColor
 from app.core.llm_client import MOCK_PREFIX
 from app.docx_forms import add_byeolji1, add_closing_pages, add_submission_page, cover_agency_lines
 from app.facts import review_sections
+from app.charts import SERIES_COLORS, build_charts, docx_bar_rows
 from app.reflection import load_checklist
 from app.state import ReportState
 
@@ -188,6 +189,34 @@ def add_table(doc: Document, header: list[str], rows: list[list[str]]) -> None:
     doc.add_paragraph()
 
 
+def add_figure(doc: Document, spec: dict, no: int) -> None:
+    """그림: 외부 이미지·폰트 없이 '█' 텍스트 막대 표로 그린다(Word에서 바로 편집 가능, 값은 모든 행에 병기)."""
+    header, rows = docx_bar_rows(spec)
+    cap = doc.add_paragraph()
+    _set_font(cap.add_run(f"그림 {no}. {spec['title']}"), size=10, bold=True)
+    cap.paragraph_format.keep_with_next = True
+    t = doc.add_table(rows=1, cols=len(header))
+    t.style = "Table Grid"
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for c, h in zip(t.rows[0].cells, header):
+        c.text = ""
+        _set_font(c.paragraphs[0].add_run(h), size=9, bold=True)
+        _shade(c, "E8ECF4")
+    for r in rows:
+        cells = t.add_row().cells
+        for c, (text, slot) in zip(cells, r):
+            c.text = ""
+            color = tuple(int(SERIES_COLORS[slot][0][i:i + 2], 16) for i in (1, 3, 5)) if slot else None
+            _set_font(c.paragraphs[0].add_run(text), size=9 if not slot else 8, color=color)
+    note = [spec["note"]] if spec.get("note") else []
+    if spec.get("ref"):
+        note.append(f"기준선: {spec['ref']['label']}")
+    if note:
+        n = doc.add_paragraph()
+        _set_font(n.add_run("※ " + " / ".join(note)), size=8.5, italic=True, color=(0x70, 0x70, 0x70))
+    doc.add_paragraph()
+
+
 def _placeholder(doc: Document, msg: str) -> None:
     p = doc.add_paragraph()
     _set_font(p.add_run(msg), size=10.5, bold=True, color=(0xC0, 0x00, 0x00))
@@ -322,6 +351,8 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
     doc.add_page_break()
 
     # ── 1~6장 ──
+    charts = build_charts(state)
+    fig_no = 0
     for num, title, prefixes in CHAPTERS:
         doc.add_heading(f"{num}. {title}", level=1)
         for item in _chapter_items(prefixes):
@@ -341,9 +372,19 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
         if num == "2" and state.los:
             doc.add_heading("현황 LOS 분석표", level=3)
             add_table(doc, ["교차로", "접근로", "용량(대/시)", "v/c", "지체(초/대)", "LOS"], _los_rows(state))
+            for spec in charts["vc"]:
+                fig_no += 1
+                add_figure(doc, spec, fig_no)
         if num == "3" and state.stages:
             doc.add_heading("3단계 LOS 비교표 (사업 미시행 / 시행 / 개선 후)", level=3)
             add_table(doc, ["교차로", "목표년도", "미시행", "시행", "개선 후", "개선 효과(초 감소)"], _stage_rows(state))
+            for spec in charts["stage"]:
+                fig_no += 1
+                add_figure(doc, spec, fig_no)
+        if num == "3":
+            for spec in charts["parking"]:
+                fig_no += 1
+                add_figure(doc, spec, fig_no)
 
     doc.add_heading("부록: 분석 기준·가정", level=1)
     basis = ["LOS 등급: 도로용량편람(국토교통부, 2013) <표 8-2> 평균 제어지체 기준, d1(식 8-47)·d2(식 8-50) — 원문 확인."]

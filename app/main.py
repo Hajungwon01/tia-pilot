@@ -11,9 +11,11 @@ from urllib.parse import quote
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 from pydantic import ValidationError
 
 from app import auth
+from app.charts import chart_rows, render_svg
 from app.config import get_settings
 from app.docx_export import build_docx
 from app.eligibility import use_table
@@ -40,6 +42,8 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="교통영향평가 초안 자동화", version="0.2.0", lifespan=lifespan,
               docs_url=None, redoc_url=None, openapi_url=None)  # 공개 API 문서는 끈다
 templates = Jinja2Templates(directory=str(BASE / "templates"))
+templates.env.globals["render_svg"] = lambda spec: Markup(render_svg(spec))  # 계산 결과로만 만든 SVG(라벨은 escape됨)
+templates.env.globals["chart_rows"] = chart_rows
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
