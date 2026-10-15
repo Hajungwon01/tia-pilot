@@ -28,7 +28,8 @@ def entrance_400(state: ReportState) -> tuple[str, str]:
              "PM": max(t.pm_peak.in_trips, t.pm_peak.out_trips)}
     peak = max(heavy, key=heavy.get)
     v = heavy[peak]
-    note = " (유발 원단위가 임시값이라 확정 판정이 아님)" if t.rates_status == "PROVISIONAL" else ""
+    note = {"PROVISIONAL": " (유발 원단위가 임시값이라 확정 판정이 아님)",
+            "PARTIAL_EVIDENCE": " (평균 재차인원이 임시값이라 확정 판정이 아님)"}.get(t.rates_status, "")
     if v >= ENTRANCE_HEAVY_DIRECTION:
         return ATTENTION, (f"{peak} 첨두시 중방향 발생교통량 {v:.0f}대/시 ≥ {ENTRANCE_HEAVY_DIRECTION}대/시: "
                            f"진·출입구를 편도 2개 차로 이상 또는 2개소 이상으로 하는 방안 검토 필요{note}")

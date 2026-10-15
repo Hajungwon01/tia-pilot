@@ -133,7 +133,7 @@ function buildPayload() {
       unit_types: [...document.querySelectorAll(".unit-row")].map(r => ({ exclusive_area_m2: num(r.querySelector(".ut-area").value),
         households: num(r.querySelector(".ut-hh").value) })).filter(u => u.exclusive_area_m2 !== null && u.households !== null),
       planned_parking_spaces: num($("planned").value), parking_demand_per_household: num($("pdem").value),
-      parking_demand_source: $("psrc").value.trim() },
+      parking_demand_source: $("psrc").value.trim(), rate_basis: $("rateEvidence").checked ? "evidence" : "provisional" },
     background_growth_rate: num($("growth").value) === null ? null : num($("growth").value) / 100,
     intersections: [],
     agency: null,

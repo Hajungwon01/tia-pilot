@@ -8,6 +8,9 @@ from pathlib import Path
 
 # app.main이 임포트 시점에 DB를 여므로, 임포트 전에 임시 경로를 지정한다(.env보다 환경변수가 우선).
 os.environ["DB_PATH"] = str(Path(tempfile.mkdtemp(prefix="tia-test-")) / "test.db")
+# 모듈·세션 범위 fixture는 아래 autouse fixture보다 먼저 실행되어 .env의 실제 키로 외부 호출(과금)을 할 수 있으므로, 임포트 시점에도 막는다.
+for _k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "BETA_CODES", "SECRET_KEY", "APP_ACCESS_CODE"):
+    os.environ[_k] = ""
 
 import pytest  # noqa: E402
 

@@ -26,6 +26,11 @@ class DataAgent(BaseAgent):
         state.trips = t
         if t.rates_status == "PROVISIONAL":
             state.warn("유발 원단위가 임시값(KTDB 승인 전): 수요 결과는 검증되지 않음")
+        elif t.rates_status == "PARTIAL_EVIDENCE":
+            state.warn("유발 원단위는 교통영향평가정보지원시스템 유사시설 조사 중앙값(서울 우선, 조사일 3년 이내)이며 평균 재차인원만 임시값 — "
+                       "평가서 제출 전 재차인원 조사와 유사시설 선정 적정성 확인 필요")
+            for n in t.rate_notes:
+                state.warn(n)
 
         state.put(
             "demand.with_project",
@@ -88,7 +93,7 @@ class DataAgent(BaseAgent):
         for n in r.notes:
             state.warn(n)
 
-        rate_txt = f"세대당 {r.demand_per_household:g}대" + ("(임시 원단위)" if prov else f"(입력 원단위{', 출처: ' + r.rate_source if r.rate_source else ''})")
+        rate_txt = f"세대당 {r.demand_per_household:g}대" + ("(임시 원단위)" if prov else f"({'입력' if r.rate_status == 'USER' else '유사시설 조사'} 원단위{', 출처: ' + r.rate_source if r.rate_source else ''})")
         lines = [f"원단위법 주차수요: {rate_txt} × {p.households}세대 × 이용효율 {r.utilization:g} = {r.demand:,.0f}대 (단기·장기 동일 원단위 적용)"]
         if r.legal_total is not None:
             basis = ("전용면적 합계 기준" if r.binding == "area" else "세대당 최소 기준")

@@ -119,7 +119,7 @@ def _peak_for_form(state: ReportState):
 
 def add_byeolji1(doc: Document, state: ReportState) -> None:
     """별지 제1호 서식 교통영향평가 분석표. 계산한 칸만 채우고 나머지는 빈 서식으로 남긴다."""
-    from app.trip_generation import load_rates
+    from app.trip_generation import rates_for
 
     p = state.project
     a = state.agency or AgencyInfo()
@@ -141,8 +141,10 @@ def add_byeolji1(doc: Document, state: ReportState) -> None:
         _para(doc, BLANK, color=(0xC0, 0, 0))
     else:
         t = state.trips
-        r = load_rates()[p.land_use.value]
+        r = rates_for(p)[0][p.land_use.value]
         prov = "" if t.rates_status != "PROVISIONAL" else " (임시 원단위)"
+        rest_note = " (임시 배분)" if t.rates_status == "PARTIAL_EVIDENCE" else ""  # 승용차 외 수단은 임시 비율을 스케일한 값
+        occ_note = "" if t.rates_status == "EVIDENCE" else " (임시)"  # 평균 재차인원은 유사시설 자료에 없다
         sh = r["mode_share"]
         pk_name, pk = _peak_for_form(state)
 
@@ -157,8 +159,8 @@ def add_byeolji1(doc: Document, state: ReportState) -> None:
 
         doc.add_heading("② 수단분담률 분석", level=3)
         _table(doc, ["용도구분", "승용차", "택시", "버스", "전철", "기타", "평균재차인원"], [
-            [BLANK + " (전용면적 구간)", f"{sh['car'] * 100:.0f}%{prov}", BLANK + " (미구분)", f"{sh['bus'] * 100:.0f}%",
-             f"{sh['subway'] * 100:.0f}%", f"{sh['walk_other'] * 100:.0f}%", f"{r['car_occupancy']:g}명/대"],
+            [BLANK + " (전용면적 구간)", f"{sh['car'] * 100:.0f}%{prov}", BLANK + " (미구분)", f"{sh['bus'] * 100:.0f}%{rest_note}",
+             f"{sh['subway'] * 100:.0f}%{rest_note}", f"{sh['walk_other'] * 100:.0f}%{rest_note}", f"{r['car_occupancy']:g}명/대{occ_note}"],
         ])
         _para(doc, "※ 단기·장기 동일 분담률 적용(기준년도 값은 제공하지 않음).", size=8.5, color=(0x70, 0x70, 0x70))
 

@@ -76,6 +76,8 @@
         <div class="hint-card" id="hintUnits"><span class="hi">🅿️</span><div><b>법정 주차대수 미리보기</b><p>주택형을 입력하면 예상 법정 대수를 보여드려요. (최종 계산은 분석 시 서버에서 해요.)</p></div></div>
 
         <div class="sub">계획 주차대수와 원단위</div>
+        <label class="chk" style="margin-bottom:8px"><input type="checkbox" id="rateEvidence" checked> 유발·주차 원단위에 <b>유사시설 조사 값</b> 사용 (국토부 교통영향평가정보지원시스템 공개 자료, 서울 우선·조사일 3년 이내 중앙값)</label>
+        <p class="field-hint" style="margin:0 0 10px">끄면 임시 원단위로 계산해요. 평균 재차인원은 어느 쪽이든 임시값이고, 아래 주차 원단위를 직접 넣으면 그 값이 우선해요.</p>
         <div class="grid">
           <div><label for="planned">계획 주차대수(건축계획)</label><input id="planned" type="number" min="0" step="1"></div>
           <div><label for="pdem">세대당 주차수요 원단위(대/세대)</label><input id="pdem" type="number" min="0" step="any" placeholder="비우면 임시값"><div class="field-hint">비우면 임시 원단위로 계산하며 "잠정" 표시</div></div>

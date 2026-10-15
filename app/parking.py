@@ -37,7 +37,7 @@ class ParkingResult(BaseModel):
     demand: float | None = None  # 원단위법 주차수요(대)
     demand_per_household: float | None = None
     utilization: float = 1.0
-    rate_status: str = "PROVISIONAL"  # PROVISIONAL | USER
+    rate_status: str = "PROVISIONAL"  # PROVISIONAL | USER | EVIDENCE
     rate_source: str = ""
     planned: int | None = None
     cap_pct: float = 130
@@ -110,6 +110,17 @@ def assess_parking(p: ProjectInput) -> ParkingResult:
     if p.parking_demand_per_household is not None:
         res.demand_per_household, res.rate_status = p.parking_demand_per_household, "USER"
         res.rate_source = p.parking_demand_source.strip()
+    elif p.rate_basis == "evidence":
+        from app.unit_evidence import derive_rates  # 지연 import
+
+        m = derive_rates().metrics["parking"]
+        if m.value is not None:
+            res.demand_per_household, res.rate_status = m.value, "EVIDENCE"
+            res.rate_source = (f"교통영향평가정보지원시스템 유사시설 {m.n}건({m.scope}, 조사일 3년 이내, 실측 {m.n_measured}건) 중앙값"
+                               + ("" if m.guideline_ok else " — 지침 요건 미충족"))
+        else:
+            res.demand_per_household = prov["demand_per_household"]
+            res.rate_source = "임시값(유사시설 자료 부족)"
     else:
         res.demand_per_household = prov["demand_per_household"]
         res.rate_source = "임시값(근거 자료 없음)"

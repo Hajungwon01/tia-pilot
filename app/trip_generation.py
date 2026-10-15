@@ -13,8 +13,20 @@ def load_rates(path: Path = RATES_PATH) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def rates_for(project: ProjectInput) -> tuple[dict, list[str]]:
+    """사업이 고른 원단위 근거(임시값 | 유사시설 조사)에 따른 원단위 표와 근거의 한계 목록."""
+    if project.rate_basis == "evidence":
+        from app.unit_evidence import derive_rates  # 지연 import: unit_evidence가 load_rates를 쓴다
+
+        ev = derive_rates()
+        return ev.rates, ev.notes
+    return load_rates(), []
+
+
 def estimate_trips(project: ProjectInput, rates: dict | None = None) -> TripGenerationResult:
-    rates = rates or load_rates()
+    notes: list[str] = []
+    if rates is None:
+        rates, notes = rates_for(project)
     r = rates[project.land_use.value]
 
     daily_person = project.households * r["daily_person_trips_per_household"]
@@ -32,4 +44,5 @@ def estimate_trips(project: ProjectInput, rates: dict | None = None) -> TripGene
         am_peak=peak("am"),
         pm_peak=peak("pm"),
         rates_status=rates.get("_status", "UNKNOWN"),
+        rate_notes=notes,
     )

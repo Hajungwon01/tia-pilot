@@ -68,6 +68,8 @@ class ProjectInput(BaseModel):
     planned_parking_spaces: int | None = Field(default=None, ge=0)  # 건축계획상 총 주차대수
     parking_demand_per_household: float | None = Field(default=None, gt=0)  # 세대당 주차수요 원단위(대/세대), 없으면 임시값
     parking_demand_source: str = Field(default="", max_length=300)  # 원단위 자료 출처(조사 사례·관련 자료)
+    # 원단위 근거: provisional=임시값, evidence=교통영향평가정보지원시스템 유사시설 조사 중앙값(app/unit_evidence.py)
+    rate_basis: Literal["provisional", "evidence"] = "provisional"
 
     # 약식 평가 (지침 제23조)
     in_evaluated_district: bool | None = None  # 교통영향평가를 실시한 사업지구 안에 건축하는지
@@ -89,7 +91,8 @@ class TripGenerationResult(BaseModel):
     daily_vehicle_trips: float
     am_peak: PeakTrips  # 첨두시 승용차 유발 통행(대/시)
     pm_peak: PeakTrips
-    rates_status: str  # PROVISIONAL이면 결과 미검증
+    rates_status: str  # PROVISIONAL이면 결과 미검증, PARTIAL_EVIDENCE면 일부(재차인원)만 임시
+    rate_notes: list[str] = Field(default_factory=list)  # 원단위 근거의 한계·대체 내역
 
 
 class Approach(BaseModel):

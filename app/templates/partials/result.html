@@ -18,7 +18,7 @@
     <h2>분석 결과 <span class="muted" style="font-weight:600">· {{ s.project.name }}</span></h2>
     <div class="chips">
       {% if s.llm.used %}<span class="badge ok"><span class="dot"></span>실제 LLM 사용</span>{% else %}<span class="badge warn"><span class="dot"></span>LLM 미사용(모의) — 개선방안 문단은 자리표시</span>{% endif %}
-      {% if s.trips and s.trips.rates_status == "PROVISIONAL" %}<span class="badge warn">임시 원단위 · 수치는 잠정</span>{% endif %}
+      {% if s.trips and s.trips.rates_status == "PROVISIONAL" %}<span class="badge warn">임시 원단위 · 수치는 잠정</span>{% elif s.trips and s.trips.rates_status == "PARTIAL_EVIDENCE" %}<span class="badge info">유사시설 원단위 · 재차인원 임시</span>{% endif %}
       {% if s.scope.abbreviated %}<span class="badge info">약식 평가 적용</span>{% endif %}
     </div>
   </div>
@@ -146,7 +146,7 @@
       <tr><td>PM 첨두</td><td>{{ "%.0f"|format(s.trips.pm_peak.in_trips) }}</td><td>{{ "%.0f"|format(s.trips.pm_peak.out_trips) }}</td><td>{{ "%.0f"|format(s.trips.pm_peak.in_trips + s.trips.pm_peak.out_trips) }}</td></tr>
     </table></div>
     <p class="muted small" style="margin-top:8px">일 승용차 유발 {{ "%.0f"|format(s.trips.daily_vehicle_trips) }}대 ·
-      원단위 상태: {{ s.trips.rates_status }}{% if s.trips.rates_status == "PROVISIONAL" %} <span class="badge warn">임시값 — 수치는 잠정</span>{% endif %}</p>
+      원단위 상태: {{ s.trips.rates_status }}{% if s.trips.rates_status == "PROVISIONAL" %} <span class="badge warn">임시값 — 수치는 잠정</span>{% elif s.trips.rates_status == "PARTIAL_EVIDENCE" %} <span class="badge info">유사시설 조사 값 — 평균 재차인원만 임시</span>{% endif %}</p>
   </div>
   {% endif %}
 </div>
