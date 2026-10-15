@@ -159,3 +159,51 @@ def test_implausible_values_are_ignored():
           full("d", "2025-01-04", park=1.3), full("e", "2025-01-05", park=1.1)]
     m = UE.metric("parking", fs, TODAY)
     assert m.n == 3 and m.value == 1.2  # 7.0(단위 혼입 의심)·0.1은 제외
+
+
+# ── 평균 재차인원 입력 ──
+def test_entered_occupancy_replaces_provisional_and_upgrades_status():
+    fs = [full(f"f{i}", "2025-01-0%d" % (i + 1)) for i in range(4)]
+    ev = UE.derive_rates(TODAY, facilities=fs, car_occupancy=1.5)
+    assert ev.status == "EVIDENCE" and ev.rates["apartment"]["car_occupancy"] == 1.5
+    assert not any("재차인원" in n for n in ev.notes)
+    partial = UE.derive_rates(TODAY, facilities=fs)
+    assert partial.status == "PARTIAL_EVIDENCE"
+
+
+def test_occupancy_with_missing_metric_stays_partial():
+    ev = UE.derive_rates(TODAY, facilities=[full("a", "2025-01-01")], car_occupancy=1.5)
+    assert ev.status == "PARTIAL_EVIDENCE" and ev.rates["apartment"]["car_occupancy"] == 1.5
+
+
+def test_project_occupancy_changes_vehicle_trips_in_both_modes():
+    base = estimate_trips(project(rate_basis="evidence"))
+    occ = estimate_trips(project(rate_basis="evidence", car_occupancy=2.0))
+    assert occ.rates_status == "EVIDENCE" and base.rates_status == "PARTIAL_EVIDENCE"
+    assert occ.daily_vehicle_trips == pytest.approx(base.daily_vehicle_trips * 1.3 / 2.0)
+    prov = estimate_trips(project(car_occupancy=2.0))
+    assert prov.rates_status == "PROVISIONAL" and prov.daily_vehicle_trips == pytest.approx(estimate_trips(project()).daily_vehicle_trips * 1.3 / 2.0)
+
+
+@pytest.mark.parametrize("v", [0.5, 0, 9, -1])
+def test_occupancy_range_is_validated(v):
+    with pytest.raises(ValueError):
+        project(car_occupancy=v)
+
+
+def test_pipeline_report_and_ui_for_entered_occupancy():
+    st = run(ReportState(project=project(rate_basis="evidence", car_occupancy=1.4, car_occupancy_source="단지 현장조사")))
+    assert st.trips.rates_status == "EVIDENCE" and any("재차인원은 입력값(출처: 단지 현장조사)" in w for w in st.warnings)
+    buf = io.BytesIO()
+    build_docx(st).save(buf)
+    text = "\n".join(c.text for t in Document(io.BytesIO(buf.getvalue())).tables for r in t.rows for c in r.cells)
+    assert "1.4명/대 (입력)" in text
+
+
+def test_wizard_sends_occupancy_fields():
+    from fastapi.testclient import TestClient
+
+    from app import main
+    c = TestClient(main.app)
+    html, js = c.get("/app").text, c.get("/static/wizard.js").text
+    assert 'id="occ"' in html and 'id="occsrc"' in html and "car_occupancy" in js and "car_occupancy_source" in js

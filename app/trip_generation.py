@@ -18,9 +18,12 @@ def rates_for(project: ProjectInput) -> tuple[dict, list[str]]:
     if project.rate_basis == "evidence":
         from app.unit_evidence import derive_rates  # 지연 import: unit_evidence가 load_rates를 쓴다
 
-        ev = derive_rates()
+        ev = derive_rates(car_occupancy=project.car_occupancy)
         return ev.rates, ev.notes
-    return load_rates(), []
+    rates = load_rates()
+    if project.car_occupancy is not None:  # 임시값 모드에서도 입력한 재차인원은 반영(나머지는 임시값이라 상태는 PROVISIONAL)
+        rates = {**rates, project.land_use.value: {**rates[project.land_use.value], "car_occupancy": project.car_occupancy}}
+    return rates, []
 
 
 def estimate_trips(project: ProjectInput, rates: dict | None = None) -> TripGenerationResult:

@@ -77,7 +77,11 @@
 
         <div class="sub">계획 주차대수와 원단위</div>
         <label class="chk" style="margin-bottom:8px"><input type="checkbox" id="rateEvidence" checked> 유발·주차 원단위에 <b>유사시설 조사 값</b> 사용 (국토부 교통영향평가정보지원시스템 공개 자료, 서울 우선·조사일 3년 이내 중앙값)</label>
-        <p class="field-hint" style="margin:0 0 10px">끄면 임시 원단위로 계산해요. 평균 재차인원은 어느 쪽이든 임시값이고, 아래 주차 원단위를 직접 넣으면 그 값이 우선해요.</p>
+        <p class="field-hint" style="margin:0 0 10px">끄면 임시 원단위로 계산해요. 아래 주차 원단위나 평균 재차인원을 직접 넣으면 그 값이 우선해요.</p>
+        <div class="grid">
+          <div><label for="occ">평균 재차인원(명/대, 운전자 포함)</label><input id="occ" type="number" min="1" max="8" step="0.01" placeholder="비우면 임시값 1.3"><div class="field-hint">유사시설 자료에는 없는 값이에요. 직접 조사하거나 인용해 넣으면 "잠정"이 사라져요.</div></div>
+          <div><label for="occsrc">재차인원 출처</label><input id="occsrc" maxlength="300" placeholder="예: 유사 단지 현장조사 2026-09"></div>
+        </div>
         <div class="grid">
           <div><label for="planned">계획 주차대수(건축계획)</label><input id="planned" type="number" min="0" step="1"></div>
           <div><label for="pdem">세대당 주차수요 원단위(대/세대)</label><input id="pdem" type="number" min="0" step="any" placeholder="비우면 임시값"><div class="field-hint">비우면 임시 원단위로 계산하며 "잠정" 표시</div></div>

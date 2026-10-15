@@ -40,7 +40,7 @@ ProjectInput(+사용자 실측 입력)
 
 ## 현재 한계 (v0.1)
 
-- 원단위: 기본은 임시값(`PROVISIONAL`). `rate_basis=evidence`(웹 기본 켜짐)이면 `app/unit_evidence.py`가 `data/unit_rate_evidence.csv`(국토부 교통영향평가정보지원시스템 공개 유사시설 조사 278곳, 서울·경기·인천 아파트, 조사일 2023-06 이후; 수집 `scripts/collect_tia_evidence.py`→`scripts/build_unit_rate_evidence.py`)에서 조사일 3년 이내·서울 우선(3건 미만이면 수도권으로 넓히고 기록) 중앙값(IQR 1.5배 이상치 제외, 상식 범위 밖 값 제외)을 만든다. 상태 `PARTIAL_EVIDENCE`: 발생·승용차 분담률·첨두 유입출·주차는 근거, 평균 재차인원만 임시값(자료에 없음). 승용차 외 수단 분담은 임시 비율을 스케일한 값(별지에 '임시 배분' 표기). 지침 요건(실측 1+관련 자료 3, 또는 실측 3) 충족 여부를 항목별로 계산한다. 이 자료는 평가서가 입력한 값을 검증 없이 모은 것이고 '발생원단위(인/일)'의 정의는 시스템 문서로 확인하지 못했다.
+- 원단위: 기본은 임시값(`PROVISIONAL`). `rate_basis=evidence`(웹 기본 켜짐)이면 `app/unit_evidence.py`가 `data/unit_rate_evidence.csv`(국토부 교통영향평가정보지원시스템 공개 유사시설 조사 278곳, 서울·경기·인천 아파트, 조사일 2023-06 이후; 수집 `scripts/collect_tia_evidence.py`→`scripts/build_unit_rate_evidence.py`)에서 조사일 3년 이내·서울 우선(3건 미만이면 수도권으로 넓히고 기록) 중앙값(IQR 1.5배 이상치 제외, 상식 범위 밖 값 제외)을 만든다. 상태 `PARTIAL_EVIDENCE`: 발생·승용차 분담률·첨두 유입출·주차는 근거, 평균 재차인원만 임시값(자료에 없음). 사용자가 `car_occupancy`(+출처)를 입력하면 `EVIDENCE`(임시값 모드에서 입력해도 나머지가 임시라 `PROVISIONAL` 유지). 승용차 외 수단 분담은 임시 비율을 스케일한 값(별지에 '임시 배분' 표기). 지침 요건(실측 1+관련 자료 3, 또는 실측 3) 충족 여부를 항목별로 계산한다. 이 자료는 평가서가 입력한 값을 검증 없이 모은 것이고 '발생원단위(인/일)'의 정의는 시스템 문서로 확인하지 못했다.
 - 규모 배수: 서울시 조례 별표(아파트 연면적 50,000㎡) 기준으로 판정. 면적 미입력 시 판정 불가 + 공간적 범위 최소 구간 임시 적용(`spatial_provisional`).
 - Planning 판정(`app/eligibility.py` `assess_project`, 기준값은 `data/eligibility_thresholds.json`, 조례·시행령·지침 원문 확인):
   - **복합용도**: Swa = Σ(Pia/Mia)×10,000 ≥ 10,000이면 대상(서울 조례 별표 2.가 용도 29종의 Mia). 공간적 범위 배수는 Swa/10,000으로 간주(지침 제5조에 복합용도 규정이 없어 확인 필요). 유발교통량은 공동주택 원단위만 계산하고 다른 용도는 포함하지 않는다.

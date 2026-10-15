@@ -70,6 +70,9 @@ class ProjectInput(BaseModel):
     parking_demand_source: str = Field(default="", max_length=300)  # 원단위 자료 출처(조사 사례·관련 자료)
     # 원단위 근거: provisional=임시값, evidence=교통영향평가정보지원시스템 유사시설 조사 중앙값(app/unit_evidence.py)
     rate_basis: Literal["provisional", "evidence"] = "provisional"
+    # 승용차 평균 재차인원(명/대, 운전자 포함). 유사시설 자료에 없는 값이라 직접 조사·인용해 입력한다. 없으면 임시값.
+    car_occupancy: float | None = Field(default=None, ge=1.0, le=8.0)
+    car_occupancy_source: str = Field(default="", max_length=300)
 
     # 약식 평가 (지침 제23조)
     in_evaluated_district: bool | None = None  # 교통영향평가를 실시한 사업지구 안에 건축하는지

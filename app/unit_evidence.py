@@ -168,8 +168,11 @@ class EvidenceRates:
         return rows
 
 
-def derive_rates(today: date | None = None, region: str = HOME_REGION, facilities=None) -> EvidenceRates:
-    """유사시설 자료로 trip_generation 형식의 원단위를 만든다. 필수 항목이 비면 임시값 항목을 유지하고 상태를 낮춘다."""
+def derive_rates(today: date | None = None, region: str = HOME_REGION, facilities=None,
+                 car_occupancy: float | None = None) -> EvidenceRates:
+    """유사시설 자료로 trip_generation 형식의 원단위를 만든다. 필수 항목이 비면 임시값 항목을 유지하고 상태를 낮춘다.
+
+    car_occupancy(사용자 입력 평균 재차인원)를 주면 임시값 대신 쓴다. 유사시설 항목이 모두 산출된 경우에만 상태가 EVIDENCE가 된다."""
     today = today or date.today()
     facs = list(facilities if facilities is not None else load_facilities())
     ms = {k: metric(k, facs, today, region) for k in METRICS}
@@ -210,9 +213,13 @@ def derive_rates(today: date | None = None, region: str = HOME_REGION, facilitie
         missing.append(LABELS["parking"])
     for k in missing:
         notes.append(f"{k}: 근거 자료 부족 — 임시값 유지")
-    notes.append("평균 재차인원은 이 자료에 없어 임시값(%g명) 유지" % base["car_occupancy"])
+    if car_occupancy is not None:
+        apt["car_occupancy"] = car_occupancy
+    else:
+        notes.append("평균 재차인원은 이 자료에 없어 임시값(%g명) 유지" % base["car_occupancy"])
     for k, m in ms.items():
         notes += [f"{LABELS[k]}: {n}" for n in m.notes if "독립 근거" not in n]
-    status = "PARTIAL_EVIDENCE"  # 재차인원이 임시값이므로 EVIDENCE가 되는 경로는 없다(재차인원 입력 기능 추가 시 확장)
-    rates = {"_status": status, "_note": "유사시설 조사(교통영향평가정보지원시스템) 중앙값 + 임시 재차인원", "apartment": apt}
+    status = "EVIDENCE" if car_occupancy is not None and not missing else "PARTIAL_EVIDENCE"
+    rates = {"_status": status, "_note": "유사시설 조사(교통영향평가정보지원시스템) 중앙값" + (" + 입력 재차인원" if car_occupancy is not None else " + 임시 재차인원"),
+             "apartment": apt}
     return EvidenceRates(rates=rates, metrics=ms, status=status, notes=notes, today=today)

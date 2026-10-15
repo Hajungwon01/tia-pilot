@@ -26,6 +26,12 @@ class DataAgent(BaseAgent):
         state.trips = t
         if t.rates_status == "PROVISIONAL":
             state.warn("유발 원단위가 임시값(KTDB 승인 전): 수요 결과는 검증되지 않음")
+        elif t.rates_status == "EVIDENCE":
+            state.warn("유발 원단위는 교통영향평가정보지원시스템 유사시설 조사 중앙값(서울 우선, 조사일 3년 이내)이고 평균 재차인원은 입력값"
+                       + (f"(출처: {state.project.car_occupancy_source.strip()})" if state.project.car_occupancy_source.strip() else "(출처 미기재)")
+                       + " — 유사시설 선정 적정성 확인 필요")
+            for n in t.rate_notes:
+                state.warn(n)
         elif t.rates_status == "PARTIAL_EVIDENCE":
             state.warn("유발 원단위는 교통영향평가정보지원시스템 유사시설 조사 중앙값(서울 우선, 조사일 3년 이내)이며 평균 재차인원만 임시값 — "
                        "평가서 제출 전 재차인원 조사와 유사시설 선정 적정성 확인 필요")
