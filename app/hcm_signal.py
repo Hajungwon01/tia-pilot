@@ -10,8 +10,12 @@
 - 지체 d=d1(PF)+d2+d3 (8-43), d1(8-47~49), d2(8-50), d3(8-51~53), PF(표 8-17), 가중평균(8-55·56)
 검증: 편람 풀이 예제 EB 접근로(p.261~273)의 중간값·결과를 tests/test_hcm_signal.py로 재현한다.
 
-지원 범위: 네갈래 CASE 1·2·3·4·6, 세갈래(직진·우회전 / 직진·좌회전 / 전용 좌·우).
-미지원: CASE 5(맨 왼쪽 전용+공용 좌회전 2차로), 우회전 2차로 이상 공용, 교통량 직접 조사 PHF 이동류별 적용.
+지원 범위: 네갈래 CASE 1·2·3·4·5·6, 세갈래(직진·우회전 / 직진·좌회전 / 전용 좌·우).
+CASE 5(맨 왼쪽 전용 + 그 옆 공용 좌회전, 직좌 동시신호)는 식 8-14·8-16·8-18·8-20, 표 8-7(E_L=1.02), 표 8-11(U턴 2차로)로 계산하고
+편람 <예제 2>(NB·SB 접근로)로 검증한다(tests/test_hcm_case5.py). 이 CASE의 차로수 N은 **맨 왼쪽 전용 차로를 포함한 총 차로수**다
+(편람 예제가 N=5로 식 8-14~8-20에 대입). 직진이 가능한 차로수 N_T=N−1(식 8-11 해설). 편람 예제 2의 E_R 표값은 N_T=N으로 계산한 것이라
+식 설명(N_T=N−1)과 어긋나며, 이 모듈은 식 설명을 따른다(검증 테스트에 그 차이를 명시).
+미지원: 우회전 2차로 이상 공용(편람에 식이 없음), 교통량 직접 조사 PHF 이동류별 적용.
 """
 import math
 from typing import Literal
@@ -120,8 +124,9 @@ class DetailedApproach(BaseModel):
 
     name: str
     topology: Literal["four_way", "t_no_left", "t_no_right", "y_dedicated"] = "four_way"
-    left_case: Literal[1, 2, 3, 4, 6] = 1  # 표 8-4: 1·2 양방보호(전용 1/2), 3 비보호(전용), 4 직좌동시(공용), 6 비보호(공용)
-    lanes: int = Field(default=1, ge=1)  # N: 전용 좌회전 차로를 제외한 접근로 차로수 (공용 좌회전 포함)
+    left_case: Literal[1, 2, 3, 4, 5, 6] = 1  # 표 8-4: 1·2 양방보호(전용 1/2), 3 비보호(전용), 4 직좌동시(공용), 5 직좌동시(맨 왼쪽 전용+공용), 6 비보호(공용)
+    # N: 전용 좌회전 차로를 제외한 접근로 차로수 (공용 좌회전 포함). 단 CASE 5는 맨 왼쪽 전용 차로를 포함한 총 차로수(4 이상)
+    lanes: int = Field(default=1, ge=1)
     left_lanes: int = Field(default=1, ge=0)  # y_dedicated의 전용 좌회전 차로수 (CASE 1·2·3은 left_case로 결정)
     right_lanes: int = Field(default=1, ge=0)  # y_dedicated의 전용 우회전 차로수
     v_left: float = Field(default=0, ge=0)  # 시간교통량(vph)
@@ -164,6 +169,11 @@ class DetailedApproach(BaseModel):
     def _check(self):
         if self.topology == "four_way" and self.left_case in (1, 2) and self.v_left > 0 and self.left_phase is None:
             raise ValueError(f"{self.name}: 양방보호 좌회전(CASE 1·2)은 left_phase(좌회전 현시)가 필요합니다.")
+        if self.left_case == 5:
+            if self.topology != "four_way":
+                raise ValueError(f"{self.name}: 좌회전 CASE 5는 네갈래 교차로에만 적용합니다(편람 그림 8-6).")
+            if self.lanes < 4:
+                raise ValueError(f"{self.name}: 좌회전 CASE 5는 맨 왼쪽 전용 좌회전 차로를 포함해 차로가 4개 이상이어야 합니다(편람 그림 8-6, 입력 차로수 {self.lanes}).")
         return self
 
 
@@ -243,6 +253,8 @@ def _left_El(a: DetailedApproach, Vo: float, N: int, VL: float, VTh: float, VLF:
         return 1.00
     if case == 2:
         return 1.05
+    if case == 5:
+        return 1.02  # 표 8-7: 직좌 동시신호, 공용 좌회전 2차로(왼쪽이 전용이어도 오른쪽이 공용이면 두 차로 모두 공용)
     if Vo <= 0 or VL <= 0:
         return 1.00  # 대향 직진이 없으면 방해 없음
     P = interp(P_TABLE, Vo)
@@ -292,11 +304,17 @@ def corrected_volumes(a: DetailedApproach, phf: float) -> dict:
     if topo == "y_dedicated":
         n_th_only = 1
     else:
-        n_th_only = max(1, a.lanes - (1 if (shared_left and VL_raw > 0) else 0) - (1 if VR_raw > 0 else 0))
+        # CASE 5: 총 차로수에서 맨 왼쪽 전용 차로와(좌회전이 있으면) 그 옆 공용 차로를 뺀다
+        left_lanes_used = (2 if VL_raw > 0 else 1) if (topo == "four_way" and case == 5) else (1 if (shared_left and VL_raw > 0) else 0)
+        n_th_only = max(1, a.lanes - left_lanes_used - (1 if VR_raw > 0 else 0))
     VTh_pk = VTh_raw / phf
     FU = fu_factor(n_th_only, VTh_pk / n_th_only) if VTh_raw > 0 else 1.0
     FR = 0.4 if (topo == "four_way" and a.right_channelized) else 0.5
-    return {"VL": VL_raw / phf, "VTh": VTh_pk * FU, "VR": VR_raw / phf * FR, "FU": FU, "FR": FR}
+    # 전용 좌회전 차로가 2개 이상이면(CASE 2, Y형 전용 좌 2차로 이상) 좌회전에도 차로이용률계수를 적용한다(편람 224쪽, 예제 2 표 334쪽)
+    n_left = 2 if (topo in ("four_way", "t_no_right") and case == 2) else (max(a.left_lanes, 1) if topo == "y_dedicated" else 1)
+    VL_pk = VL_raw / phf
+    FU_L = fu_factor(n_left, VL_pk / n_left) if (n_left >= 2 and VL_raw > 0) else 1.0
+    return {"VL": VL_pk * FU_L, "VTh": VTh_pk * FU, "VR": VR_raw / phf * FR, "FU": FU, "FU_L": FU_L, "FR": FR}
 
 
 def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachResult:
@@ -314,7 +332,8 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
     VR_raw = a.v_right if topo in ("four_way", "t_no_left", "y_dedicated") else 0.0
     dedicated_left = (topo == "four_way" and case in (1, 2, 3)) or (topo == "t_no_right" and case in (1, 2, 3))
     shared_left = (topo in ("four_way", "t_no_right")) and case in (4, 6)
-    N = a.lanes
+    case5 = topo == "four_way" and case == 5
+    N = a.lanes  # CASE 5에서는 맨 왼쪽 전용 차로를 포함한 총 차로수
     has_left, has_right = VL_raw > 0, VR_raw > 0
 
     # 교통량 보정 (PHF, 차로이용률, RTOR)
@@ -341,11 +360,13 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
     # 좌회전 직진환산계수
     EL = 1.0
     VLF = 3600 * VTh / (C * N * VL) if (shared_left and VL > 0 and N > 0) else 0.0
+    if case5 and VL > 0:
+        VLF = 7200 * VTh / (C * (N - 1) * VL)  # 식 8-14: 좌회전 두 차로가 함께 방출되므로 3,600 대신 7,200
     if VL > 0:
         N_for_P = N if topo != "y_dedicated" else max(a.left_lanes, 1)
         El = _left_El(a, Vo, N_for_P, VL, VTh, VLF, gc_main)
         Ep = ep_factor(a.left_radius_m)
-        left_capable = 2 if case == 2 else 1
+        left_capable = 2 if case in (2, 5) else 1
         upct = 100 * a.u_turn / (VL_raw + a.u_turn) if (VL_raw + a.u_turn) > 0 else 0.0
         Eu = interp(EU2 if left_capable == 2 else EU1, upct)
         EL = El * Ep * Eu
@@ -354,8 +375,9 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
 
     # 우회전 직진환산계수 (공용 우회전)
     ER = 1.0
-    NT = N
-    VRF = 3600 * VTh / (C * N * VR) if (has_right and VR > 0 and N > 0 and topo != "y_dedicated") else 0.0
+    NT = through_capable_lanes(a)
+    n_vrf = N - 1 if case5 else N  # 식 8-16(CASE 5)은 N−1, 식 8-15는 N
+    VRF = 3600 * VTh / (C * n_vrf * VR) if (has_right and VR > 0 and n_vrf > 0 and topo != "y_dedicated") else 0.0
     if has_right and topo != "y_dedicated":
         if a.right_channelized:
             ER = 1.16 + LH / (1.63 * VR)  # 식 8-12
@@ -397,8 +419,10 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
         _t_no_right_shared(raw_groups, N, VTh, VL, VLF, EL, LH, main_phase, detail)
     elif shared_left and has_left:
         _shared_left_groups(raw_groups, N, VTh, VL, VR, VLF, VRF, EL, ER, main_phase, detail, has_right)
-    else:  # 좌회전 없음(또는 공용 좌회전 차로가 비어 있음): 직진·우회전만
-        _right_groups(raw_groups, N, VTh, VR, VRF, ER, 0.0, EL, main_phase, th_friction, detail, has_right)
+    elif case5 and has_left:
+        _case5_groups(raw_groups, N, VTh, VL, VR, VLF, VRF, EL, ER, main_phase, detail, has_right)
+    else:  # 좌회전 없음(또는 공용 좌회전 차로가 비어 있음): 직진·우회전만. CASE 5는 맨 왼쪽 전용 차로가 비어 N−1개로 본다
+        _right_groups(raw_groups, N - 1 if case5 else N, VTh, VR, VRF, ER, 0.0, EL, main_phase, th_friction, detail, has_right)
 
     # ── 포화교통류율·용량·지체 ──
     groups: list[GroupResult] = []
@@ -478,6 +502,42 @@ def _shared_left_groups(out, N, VTh, VL, VR, VLF, VRF, EL, ER, ph, detail, has_r
         out.append(("공용LT", ph, N - 1, VT, _f(VL / VT, EL)))
         out.append(("실질RT", ph, 1, VRF + VR, _f(VR / (VRF + VR), ER)))
     else:  # 전체 통합(식 8-32)
+        VT = VTh + VL + VR
+        out.append(("통합", ph, N, VT, 1 / (1 + (VL / VT) * (EL - 1) + (VR / VT) * (ER - 1 if has_right else 0))))
+
+
+def through_capable_lanes(a: DetailedApproach) -> int:
+    """직진이 가능한 차로수 N_T (식 8-11 해설): CASE 5만 N−1, 나머지는 N."""
+    return a.lanes - 1 if (a.topology == "four_way" and a.left_case == 5) else a.lanes
+
+
+def _case5_groups(out, N, VTh, VL, VR, VLF, VRF, EL, ER, ph, detail, has_right):
+    """CASE 5(맨 왼쪽 전용 + 공용 좌회전 2차로, 직좌 동시신호)의 차로군 분류: 식 8-18·8-20, 표 8-14, 식 8-21~8-26, 그림 8-6.
+
+    N은 맨 왼쪽 전용 차로를 포함한 총 차로수(4 이상). 좌회전 두 차로는 한 덩어리(실질적 전용이면 2차로 차로군)로 본다.
+    """
+    ER_VR = ER * VR if has_right else 0.0
+    VSTL = (2 * (VTh + ER_VR) - EL * VL * (N - 2)) / N  # 식 8-18
+    VSTR = (VTh + EL * VL - ER_VR * (N - 1)) / N if has_right else float("inf")  # 식 8-20
+    detail.update(VSTL=VSTL, VSTR=VSTR)
+    left_de_facto = VSTL < VLF
+    right_de_facto = has_right and VSTR < VRF
+    if left_de_facto and right_de_facto:  # 실질 전용 좌(2차로)·우 + 직진
+        out.append(("실질LT", ph, 2, VLF + VL, _f(VL / (VLF + VL), EL)))
+        out.append(("실질RT", ph, 1, VRF + VR, _f(VR / (VRF + VR), ER)))
+        out.append(("직진", ph, N - 3, VTh - VLF - VRF, 1.0))
+    elif left_de_facto:
+        out.append(("실질LT", ph, 2, VLF + VL, _f(VL / (VLF + VL), EL)))
+        if has_right:
+            VT = VTh - VLF + VR  # 식 8-24
+            out.append(("공용RT", ph, N - 2, VT, _f(VR / VT, ER)))
+        else:
+            out.append(("직진", ph, N - 2, VTh - VLF, 1.0))
+    elif right_de_facto:
+        VT = VTh - VRF + VL  # 식 8-23
+        out.append(("공용LT", ph, N - 1, VT, _f(VL / VT, EL)))
+        out.append(("실질RT", ph, 1, VRF + VR, _f(VR / (VRF + VR), ER)))
+    else:  # 전체 통합(식 8-25·8-26)
         VT = VTh + VL + VR
         out.append(("통합", ph, N, VT, 1 / (1 + (VL / VT) * (EL - 1) + (VR / VT) * (ER - 1 if has_right else 0))))
 

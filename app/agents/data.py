@@ -13,7 +13,7 @@ from .base import BaseAgent
 SIMPLE_WARN = ("LOS는 도로용량편람(2013) 기준(<표 8-2>, d1·d2 식 원문 확인)으로 계산하되, 포화교통류율은 입력값을 쓰고 "
                "연동계수(PF=1.0)·초기대기지체(d3=0)는 반영하지 않은 간이 분석")
 DETAILED_WARN = ("LOS는 도로용량편람(2013) 운영분석 절차(차로군 분류·직진환산·보정계수·연동계수·초기대기지체, 식 8-1~8-56)로 계산 "
-                 "— 편람 풀이 예제로 검증. 미지원: 좌회전 CASE 5, 우회전 다차로 공용")  # 개선 시나리오는 app/improvement.py
+                 "— 편람 풀이 예제로 검증. 미지원: 우회전 2차로 이상 공용(편람에 식 없음)")  # 개선 시나리오는 app/improvement.py
 
 
 class DataAgent(BaseAgent):
