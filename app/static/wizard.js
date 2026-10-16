@@ -133,7 +133,7 @@ function buildPayload() {
       unit_types: [...document.querySelectorAll(".unit-row")].map(r => ({ exclusive_area_m2: num(r.querySelector(".ut-area").value),
         households: num(r.querySelector(".ut-hh").value) })).filter(u => u.exclusive_area_m2 !== null && u.households !== null),
       planned_parking_spaces: num($("planned").value), parking_demand_per_household: num($("pdem").value),
-      parking_demand_source: $("psrc").value.trim(), rate_basis: $("rateEvidence").checked ? "evidence" : "provisional",
+      parking_demand_source: $("psrc").value.trim(), rate_basis: $("rateEvidence").checked ? "evidence" : "provisional", rate_direction: $("rdir").value,
       car_occupancy: num($("occ").value), car_occupancy_source: $("occsrc").value.trim(),
       rate_overrides: stripNull({ person_trips_per_household: num($("ro_trips").value), car_share_pct: num($("ro_car").value), taxi_share_pct: num($("ro_taxi").value), bus_share_pct: num($("ro_bus").value),
         subway_share_pct: num($("ro_sub").value), other_share_pct: num($("ro_oth").value),

@@ -151,11 +151,11 @@ def add_byeolji1(doc: Document, state: ReportState) -> None:
         pk_name, pk = _peak_for_form(state)
 
         doc.add_heading("① 활동인구 분석", level=3)
-        _para(doc, "※ 본 도구의 원단위는 세대당 일 사람통행(인통행/일)이며 상근·방문 구분은 제공하지 않아 방문 칸에 기재했습니다.",
+        _para(doc, "※ 본 도구의 원단위는 세대당 일 사람통행(인/일, 유사시설·입력 값은 유입 기준 또는 입력한 기준)이며 상근·방문 구분은 제공하지 않아 방문 칸에 기재했습니다.",
               size=8.5, color=(0x70, 0x70, 0x70))
         per_hh = r["daily_person_trips_per_household"]
         _table(doc, ["용도구분", "면적(㎡, 세대)", "발생원단위(인/세대) 방문", "총 활동인구(인) 방문", "상근", "비고"], [
-            [BLANK + " (전용면적 구간)", f"{p.households:,}세대", f"{per_hh:g}{prov}", f"{t.daily_person_trips:,.0f}", "-",
+            [BLANK + " (전용면적 구간)", f"{p.households:,}세대", f"{per_hh:g}{prov}", f"{p.households * per_hh:,.0f}", "-",
              "단기·장기 동일 원단위 적용"],
         ])
 

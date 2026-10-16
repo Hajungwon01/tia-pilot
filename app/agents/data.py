@@ -43,8 +43,11 @@ class DataAgent(BaseAgent):
                 state.warn(n)
         p = state.project
         if p.rate_basis == "evidence" and p.rate_overrides.person_trips_per_household is None:  # 유사시설 발생원단위를 쓴 경우 정의의 한계를 알린다
-            state.warn("유사시설 '발생원단위(인/일)'는 시스템 설명서로 정의를 확인하지 못해 양방향 합계로 해석했고 KTDB 가구통행실태조사보다 "
-                       "낮은 값이라 과소 가능성이 있음 — 직접 조사한 원단위가 있으면 직접 입력")
+            state.warn("유사시설 '발생원단위(인/일)'의 방향은 국토부 시스템 문서로 확정하지 못했음: "
+                       + ("경기연구원(2023) 연구의 정의에 따라 유입 기준(일 총 통행=유입×2)으로 해석 — 양방향 합계라면 승용차 통행은 절반"
+                          if p.rate_direction == "inflow" else
+                          "양방향 합계로 해석 — 유입 기준이라면 승용차 통행은 2배")
+                       + ". 직접 조사한 원단위가 있으면 직접 입력")
 
         state.put(
             "demand.with_project",

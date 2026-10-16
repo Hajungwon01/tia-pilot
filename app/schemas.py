@@ -111,6 +111,9 @@ class ProjectInput(BaseModel):
     parking_demand_source: str = Field(default="", max_length=300)  # 원단위 자료 출처(조사 사례·관련 자료)
     # 원단위 근거: provisional=임시값, evidence=교통영향평가정보지원시스템 유사시설 조사 중앙값(app/unit_evidence.py)
     rate_basis: Literal["provisional", "evidence"] = "provisional"
+    # 유사시설 값·직접 입력한 '세대당 일 발생원단위(인/일)'가 가리키는 방향. inflow=하루 동안 단지로 들어오는 사람(한 방향, 경기연구원 2023 연구의
+    # 활동인구 발생원단위 정의), both=유입+유출 합계. 일 총 통행은 유입 기준이면 ×2(유출=유입 가정). 임시값(8인/일)은 항상 양방향 합계.
+    rate_direction: Literal["inflow", "both"] = "inflow"
     # 승용차 평균 재차인원(명/대, 운전자 포함). 유사시설 자료에 없는 값이라 직접 조사·인용해 입력한다. 없으면 임시값.
     car_occupancy: float | None = Field(default=None, ge=1.0, le=8.0)
     rate_overrides: RateOverrides = Field(default_factory=RateOverrides)  # 직접 입력한 발생·분담률·첨두 원단위

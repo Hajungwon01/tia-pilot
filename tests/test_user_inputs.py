@@ -30,7 +30,7 @@ FULL = dict(person_trips_per_household=4.0, car_share_pct=25, am_in_pct=3, am_ou
 # ── 원단위 직접 입력 ──
 def test_override_replaces_each_item_and_keeps_the_rest():
     base = estimate_trips(project())
-    t = estimate_trips(project(rate_overrides=RateOverrides(person_trips_per_household=4.0)))
+    t = estimate_trips(project(rate_overrides=RateOverrides(person_trips_per_household=4.0), rate_direction="both"))
     assert t.daily_person_trips == 4000 and base.daily_person_trips == 8000
     assert t.rates_status == "PROVISIONAL" and any("세대당 일 발생원단위: 사용자 입력 4인/일" in n for n in t.rate_notes)
     car = estimate_trips(project(rate_overrides=RateOverrides(car_share_pct=20)))
@@ -55,7 +55,7 @@ def test_all_user_values_give_user_status_in_both_modes():
 
 def test_override_beats_evidence_in_evidence_mode():
     t = estimate_trips(project(rate_basis="evidence", rate_overrides=RateOverrides(person_trips_per_household=5.0)))
-    assert t.daily_person_trips == 5000 and any("사용자 입력" in n for n in t.rate_notes)
+    assert t.daily_person_trips == 10_000 and any("사용자 입력" in n for n in t.rate_notes)  # 기본 해석은 유입 기준이라 일 총 통행은 ×2
 
 
 @pytest.mark.parametrize("bad", [dict(am_in_pct=3), dict(pm_out_pct=4), dict(am_in_pct=0, am_out_pct=0), dict(car_share_pct=101),
@@ -206,3 +206,38 @@ def test_wizard_sends_mode_split():
     for fid in ("ro_taxi", "ro_bus", "ro_sub", "ro_oth"):
         assert f'id="{fid}"' in html and fid in js, fid
     assert "taxi_share_pct" in js and "other_share_pct" in js
+
+
+# ── 발생원단위의 방향(유입 기준 / 양방향 합계) ──
+def test_inflow_basis_doubles_daily_trips_versus_both_for_the_same_rate():
+    ov = RateOverrides(person_trips_per_household=4.0, car_share_pct=25)
+    both = estimate_trips(project(rate_overrides=ov, rate_direction="both"))
+    inflow = estimate_trips(project(rate_overrides=ov, rate_direction="inflow"))
+    assert inflow.daily_vehicle_trips == pytest.approx(2 * both.daily_vehicle_trips)
+    assert inflow.am_peak.total == pytest.approx(2 * both.am_peak.total) and inflow.pm_peak.in_trips == pytest.approx(2 * both.pm_peak.in_trips)
+    assert any("유입(하루 동안 단지로 들어오는 사람) 기준" in n for n in inflow.rate_notes)
+    assert any("양방향 합계로 해석" in n for n in both.rate_notes)
+
+
+def test_provisional_rate_is_always_both_directions_and_evidence_defaults_to_inflow():
+    prov = estimate_trips(project(rate_direction="inflow"))  # 임시값 8인/일은 합계로 정한 값이라 방향 설정과 무관
+    assert prov.daily_person_trips == 8000 and prov.rate_notes == []
+    ev = estimate_trips(project(rate_basis="evidence"))
+    from app.unit_evidence import derive_rates
+    per_hh = derive_rates().rates["apartment"]["daily_person_trips_per_household"]
+    assert ev.daily_person_trips == pytest.approx(2 * per_hh * 1000)
+
+
+def test_form_total_activity_population_is_not_doubled():
+    st = run(ReportState(project=project(rate_basis="evidence")))
+    from app.unit_evidence import derive_rates
+    per_hh = derive_rates().rates["apartment"]["daily_person_trips_per_household"]
+    buf = io.BytesIO()
+    build_docx(st).save(buf)
+    cells = "\n".join(c.text for t in Document(io.BytesIO(buf.getvalue())).tables for r in t.rows for c in r.cells)
+    assert f"{per_hh * 1000:,.0f}" in cells  # 별지의 총 활동인구는 유입 기준 값 그대로
+
+
+def test_wizard_sends_direction():
+    c = TestClient(main.app)
+    assert 'id="rdir"' in c.get("/app").text and "rate_direction" in c.get("/static/wizard.js").text
