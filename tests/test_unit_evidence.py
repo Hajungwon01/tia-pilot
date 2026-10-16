@@ -211,3 +211,15 @@ def test_wizard_sends_occupancy_fields():
     c = TestClient(main.app)
     html, js = c.get("/app").text, c.get("/static/wizard.js").text
     assert 'id="occ"' in html and 'id="occsrc"' in html and "car_occupancy" in js and "car_occupancy_source" in js
+
+
+def test_definition_caveat_is_reported_when_evidence_person_trips_used():
+    ev_state = run(ReportState(project=project(rate_basis="evidence")))
+    assert any("발생원단위(인/일)" in w and "양방향 합계" in w for w in ev_state.warnings)
+    own = run(ReportState(project=project(rate_basis="evidence",
+                                          rate_overrides=__import__("app.schemas", fromlist=["RateOverrides"]).RateOverrides(person_trips_per_household=4.0))))
+    assert not any("양방향 합계로 해석" in w for w in own.warnings)  # 직접 입력하면 해당 없음
+    buf = io.BytesIO()
+    build_docx(ev_state).save(buf)
+    text = "\n".join(p.text for p in Document(io.BytesIO(buf.getvalue())).paragraphs)
+    assert "양방향 합)" in text and "4.73" in text and "2.37" in text

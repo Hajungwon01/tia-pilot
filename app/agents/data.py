@@ -41,6 +41,10 @@ class DataAgent(BaseAgent):
                        "평가서 제출 전 재차인원 조사와 유사시설 선정 적정성 확인 필요")
             for n in t.rate_notes:
                 state.warn(n)
+        p = state.project
+        if p.rate_basis == "evidence" and p.rate_overrides.person_trips_per_household is None:  # 유사시설 발생원단위를 쓴 경우 정의의 한계를 알린다
+            state.warn("유사시설 '발생원단위(인/일)'는 시스템 설명서로 정의를 확인하지 못해 양방향 합계로 해석했고 KTDB 가구통행실태조사보다 "
+                       "낮은 값이라 과소 가능성이 있음 — 직접 조사한 원단위가 있으면 직접 입력")
 
         state.put(
             "demand.with_project",
