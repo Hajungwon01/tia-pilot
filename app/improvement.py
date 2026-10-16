@@ -84,7 +84,7 @@ def _lane_candidates(ix: DetailedIntersection) -> list[tuple[str, str, DetailedI
             apps = list(ix.approaches)
             apps[i] = a.model_copy(update=upd)
             kind = "비보호 전용" if a.left_case == 6 else "직좌동시 전용"
-            note, design = left_lane_note(a.v_left, ix.cycle, a.lane_width_m, a.heavy_pct)
+            note, design = left_lane_note(a.v_left, ix.cycle, a.lane_width_m, a.heavy_pct, a.road_class)
             out.append((f"left_bay:{a.name}", f"{a.name} 접근로 전용 좌회전 차로 신설", ix.model_copy(update={"approaches": apps}),
                         [f"{a.name} 접근로 좌회전 공용 차로 → {kind} 차로(좌회전 CASE {a.left_case} → {upd['left_case']}, 총 차로 1개 추가)", note],
                         design))

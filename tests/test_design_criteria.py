@@ -96,3 +96,49 @@ def test_ai_input_lists_criteria_and_facts_accept_them():
     assert verify_text("교통섬 최소 면적은 11㎡입니다.", f)  # 원문에 없는 수치
     d = next(s["design"] for s in st.stages["T"][1]["scenarios"]["scenarios"] if s["design"])
     assert verify_text(f"필요 길이는 약 {d['standard_m']:g}m입니다.", f) == []
+
+
+# ── 도로 기능 → 설계속도(도로의 구조·시설 기준에 관한 규칙 제8조①, 도시지역) ──
+def test_urban_design_speed_table_matches_the_rule():
+    assert DC.URBAN_DESIGN_SPEED == {"arterial": 80, "sub_arterial": 60, "collector": 50, "local": 40}
+    assert DC.design_speed_for("sub_arterial")[0] == 60 and "제8조" in DC.design_speed_for("sub_arterial")[1]
+    v, basis = DC.design_speed_for(None)
+    assert v == 50 == DC.DEFAULT_DESIGN_SPEED and "미입력" in basis and "가정" in basis
+    assert all(v in DC.SPEEDS for v in DC.URBAN_DESIGN_SPEED.values())  # 표 3.6에 있는 속도만 쓴다
+
+
+def test_faster_road_needs_longer_left_lane_and_note_says_basis():
+    slow, _ = DC.left_lane_note(150, 120, 3.0, 5, "local")
+    fast, d = DC.left_lane_note(150, 120, 3.0, 5, "arterial")
+    assert d["design_speed"] == 80 and d["speed_assumed"] is False and "주간선도로(도시지역) 설계속도 80km/h" in fast
+    assert DC.left_turn_lane_length(5, 80, 3.0).length_m > DC.left_turn_lane_length(5, 40, 3.0).length_m
+    assert "설계속도 40km/h" in slow
+    assumed, d0 = DC.left_lane_note(150, 120, 3.0, 5, None)
+    assert d0["speed_assumed"] is True and "미입력" in assumed
+
+
+def test_road_class_flows_from_input_to_scenario_and_ai_criteria():
+    ix = four_leg()
+    apps = [a.model_copy(update={"road_class": "sub_arterial"}) for a in ix.approaches]
+    st = ReportState(project=ProjectInput(name="t", address="서울", households=1000, gross_floor_area_m2=120_000),
+                     detailed_intersections=[ix.model_copy(update={"approaches": apps})], background_growth_rate=0.02)
+    st = asyncio.run(TIAPipeline().run(st))
+    sc = [s for s in st.stages["T"][1]["scenarios"]["scenarios"] if s["design"]]
+    assert sc and all(s["design"]["design_speed"] == 60 and not s["design"]["speed_assumed"] for s in sc)
+    text = AIAgent.__new__(AIAgent)._facts(st)
+    assert "도시지역 설계속도 주간선도로 80" in text and "제8조" in text
+    f = build_facts(st)
+    assert verify_text("보조간선도로의 설계속도는 60km/h 이상입니다.", f) == []
+
+
+def test_invalid_road_class_rejected():
+    with pytest.raises(ValueError):
+        A(name="x", road_class="highway")
+
+
+def test_wizard_sends_road_class(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from app import main
+    js = TestClient(main.app).get("/static/wizard.js").text
+    assert "dp-road" in js and "road_class" in js

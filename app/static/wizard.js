@@ -237,6 +237,7 @@ function dapHtml() {
     </div>
     <details><summary class="small">세부 조건 (U턴·곡선반경·차로폭·중차량·노변마찰·연동…)</summary>
       <div class="g3">
+        ${sel("도로 기능(설계속도, 도시지역)", "dp-road", [["", "모름(집산도로 50km/h 가정)"], ["arterial", "주간선도로 80km/h"], ["sub_arterial", "보조간선도로 60km/h"], ["collector", "집산도로 50km/h"], ["local", "국지도로 40km/h"]])}
         ${num0("대향직진 Vo (맞은편 미지정 시)", "dp-vo", "0", 'min="0"')}
         ${num0("U턴 (vph)", "dp-u", "0", 'min="0"')}
         ${num0("좌회전 곡선반경(m)", "dp-rad", "25", 'min="1"')}
@@ -398,7 +399,7 @@ function buildDetailed() {
       parking_vph: num(val(ap, "dp-pkv")), ped_per_hour: num(val(ap, "dp-ped")), ped_green_s: num(val(ap, "dp-gp")),
       right_channelized: chk(ap, "dp-chan"), coordinated: chk(ap, "dp-coord"), link_length_m: num(val(ap, "dp-link")),
       speed_kph: num(val(ap, "dp-spd")), offset_s: num(val(ap, "dp-off")),
-      initial_queue: parseQueue(val(ap, "dp-qb")),
+      initial_queue: parseQueue(val(ap, "dp-qb")), road_class: val(ap, "dp-road") || null,
       project_share_left: (num(val(ap, "dp-sl")) || 0) / 100, project_share_through: (num(val(ap, "dp-st")) || 0) / 100,
       project_share_right: (num(val(ap, "dp-sr")) || 0) / 100,
     }));
