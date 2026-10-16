@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class LandUse(str, Enum):
@@ -33,6 +33,30 @@ class ProjectOverview(BaseModel):
     parking_women: int | None = Field(default=None, ge=0)  # 여성 주차
     parking_compact: int | None = Field(default=None, ge=0)  # 경차 주차
     parking_tour_bus: int | None = Field(default=None, ge=0)  # 관광버스 주차
+
+
+class RateOverrides(BaseModel):
+    """사용자가 직접 조사·인용한 유발 원단위. 값을 넣은 항목은 유사시설 자료·임시값보다 우선한다(출처는 보고서에 남는다)."""
+
+    person_trips_per_household: float | None = Field(default=None, gt=0, le=30)  # 세대당 일 발생(인/일)
+    car_share_pct: float | None = Field(default=None, ge=0, le=100)  # 승용차 분담률(%)
+    am_in_pct: float | None = Field(default=None, ge=0, le=100)  # 오전 첨두시 유입(일 유입 대비 %)
+    am_out_pct: float | None = Field(default=None, ge=0, le=100)
+    pm_in_pct: float | None = Field(default=None, ge=0, le=100)
+    pm_out_pct: float | None = Field(default=None, ge=0, le=100)
+    source: str = Field(default="", max_length=300)  # 조사·자료 출처
+
+    @model_validator(mode="after")
+    def _pairs(self):
+        for a, b, name in ((self.am_in_pct, self.am_out_pct, "오전"), (self.pm_in_pct, self.pm_out_pct, "오후")):
+            if (a is None) != (b is None):
+                raise ValueError(f"{name} 첨두 유입·유출은 둘 다 입력하세요.")
+            if a is not None and a + b <= 0:
+                raise ValueError(f"{name} 첨두 유입·유출의 합이 0입니다.")
+        return self
+
+    def given(self) -> bool:
+        return any(v is not None for k, v in self.model_dump().items() if k != "source")
 
 
 class UnitType(BaseModel):
@@ -72,7 +96,20 @@ class ProjectInput(BaseModel):
     rate_basis: Literal["provisional", "evidence"] = "provisional"
     # 승용차 평균 재차인원(명/대, 운전자 포함). 유사시설 자료에 없는 값이라 직접 조사·인용해 입력한다. 없으면 임시값.
     car_occupancy: float | None = Field(default=None, ge=1.0, le=8.0)
+    rate_overrides: RateOverrides = Field(default_factory=RateOverrides)  # 직접 입력한 발생·분담률·첨두 원단위
     car_occupancy_source: str = Field(default="", max_length=300)
+
+    # 개선 후보 탐색 조건(비우면 임의 기본값 7초·60~180초). 현장 신호운영 기준(보행 횡단시간 등)으로 입력하는 것이 맞다.
+    min_green_s: float | None = Field(default=None, gt=0, le=60)
+    cycle_search_min_s: float | None = Field(default=None, ge=30, le=300)
+    cycle_search_max_s: float | None = Field(default=None, ge=30, le=300)
+
+    @model_validator(mode="after")
+    def _cycle_range(self):
+        lo, hi = self.cycle_search_min_s, self.cycle_search_max_s
+        if lo is not None and hi is not None and lo > hi:
+            raise ValueError("신호주기 탐색 범위의 최소가 최대보다 큽니다.")
+        return self
 
     # 약식 평가 (지침 제23조)
     in_evaluated_district: bool | None = None  # 교통영향평가를 실시한 사업지구 안에 건축하는지

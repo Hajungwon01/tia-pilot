@@ -18,12 +18,21 @@ def rates_for(project: ProjectInput) -> tuple[dict, list[str]]:
     if project.rate_basis == "evidence":
         from app.unit_evidence import derive_rates  # 지연 import: unit_evidence가 load_rates를 쓴다
 
-        ev = derive_rates(car_occupancy=project.car_occupancy)
+        ev = derive_rates(car_occupancy=project.car_occupancy, overrides=project.rate_overrides)
         return ev.rates, ev.notes
-    rates = load_rates()
-    if project.car_occupancy is not None:  # 임시값 모드에서도 입력한 재차인원은 반영(나머지는 임시값이라 상태는 PROVISIONAL)
-        rates = {**rates, project.land_use.value: {**rates[project.land_use.value], "car_occupancy": project.car_occupancy}}
-    return rates, []
+    from app.unit_evidence import apply_overrides, status_from_sources
+
+    base = load_rates()
+    key = project.land_use.value
+    apt = {**base[key], "mode_share": dict(base[key]["mode_share"]), "peak_hour": {k: dict(v) for k, v in base[key]["peak_hour"].items()}}
+    sources = {k: "provisional" for k in ("person_trips", "car_share", "am_peak", "pm_peak", "occupancy")}
+    notes: list[str] = []
+    apply_overrides(apt, sources, project.rate_overrides, notes)  # 임시값 모드에서도 직접 입력한 값은 반영한다
+    if project.car_occupancy is not None:
+        apt["car_occupancy"] = project.car_occupancy
+        sources["occupancy"] = "user"
+    rates = {**base, key: apt, "_sources": sources, "_status": status_from_sources(sources, evidence_mode=False)}
+    return rates, notes
 
 
 def estimate_trips(project: ProjectInput, rates: dict | None = None) -> TripGenerationResult:

@@ -1,6 +1,6 @@
 from app.hcm_signal import analyze_detailed
 from app.hcm_stages import analyze_stages_detailed
-from app.improvement import scenario_lines
+from app.improvement import Params, scenario_lines
 from app.hcm_stages import summarize as summarize_detailed
 from app.los import analyze_intersection
 from app.parking import assess_parking
@@ -26,6 +26,10 @@ class DataAgent(BaseAgent):
         state.trips = t
         if t.rates_status == "PROVISIONAL":
             state.warn("유발 원단위가 임시값(KTDB 승인 전): 수요 결과는 검증되지 않음")
+        elif t.rates_status == "USER":
+            state.warn("유발 원단위는 모두 사용자가 직접 입력한 값(출처는 원단위 근거 부록 참조)")
+            for n in t.rate_notes:
+                state.warn(n)
         elif t.rates_status == "EVIDENCE":
             state.warn("유발 원단위는 교통영향평가정보지원시스템 유사시설 조사 중앙값(서울 우선, 조사일 3년 이내)이고 평균 재차인원은 입력값"
                        + (f"(출처: {state.project.car_occupancy_source.strip()})" if state.project.car_occupancy_source.strip() else "(출처 미기재)")
@@ -147,6 +151,12 @@ class DataAgent(BaseAgent):
             self._need(state, "demand.background_growth_rate")
 
         without_lines, stage_lines = [], []
+        params = Params.from_project(state.project)
+        if not params.is_default:
+            state.warn(f"개선 후보 탐색 조건(입력값): 최소 녹색시간 {params.min_green:g}초, 신호주기 {params.cycle_min:g}~{params.cycle_max:g}초")
+        else:
+            state.warn(f"개선 후보 탐색 조건이 기본값(최소 녹색시간 {params.min_green:g}초, 신호주기 {params.cycle_min:g}~{params.cycle_max:g}초): "
+                       "현장 신호운영 기준에 맞게 입력하면 개선 결과가 달라질 수 있음")
 
         def add_lines(name: str, peak: str, res: dict) -> None:
             for y, st in res.items():
@@ -169,7 +179,7 @@ class DataAgent(BaseAgent):
             if sum(a.project_share for a in ix.approaches) == 0:
                 state.warn(f"{ix.name}: 방면별 사업 교통량 배분율 미입력으로 시행 시 교통량이 미시행과 같음")
                 self._need(state, "demand.project_share")
-            res = analyze_stages(ix.approaches, ix.cycle, years, g, peak_total)
+            res = analyze_stages(ix.approaches, ix.cycle, years, g, peak_total, params.min_green)
             state.stages[ix.name] = res
             add_lines(ix.name, ix.peak, res)
 
@@ -190,7 +200,7 @@ class DataAgent(BaseAgent):
             if idle:
                 state.warn(f"{ix.name}: 현시 {', '.join(map(str, idle))}에는 입력된 접근로가 없어 녹색시간을 그대로 두고 "
                            "교통량이 입력된 현시끼리만 재배분함(나머지 접근로 교통량을 입력하면 개선 효과가 달라질 수 있음)")
-            res = analyze_stages_detailed(ix, years, g, peak_total)
+            res = analyze_stages_detailed(ix, years, g, peak_total, params)
             for y, st in res.items():
                 for note in st.get("notes", []):
                     state.warn(f"{ix.name} 준공 후 {y}년: {note}")

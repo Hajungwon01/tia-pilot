@@ -85,7 +85,7 @@ def overview_rows(state: ReportState) -> list[dict]:
         add("발생교통량 — 사업지(승용차)",
             f"준공 후 {'·'.join(str(y) for y in years)}년 동일 원단위 적용: 일 {t.daily_vehicle_trips:,.0f}대/일, "
             f"AM 첨두 {t.am_peak.total:,.0f}대/시, PM 첨두 {t.pm_peak.total:,.0f}대/시"
-            + {"PROVISIONAL": " (임시 원단위)", "PARTIAL_EVIDENCE": " (유사시설 조사 원단위, 재차인원 임시)", "EVIDENCE": " (유사시설 조사 원단위)"}.get(t.rates_status, ""), "auto")
+            + {"PROVISIONAL": " (임시 원단위)", "PARTIAL_EVIDENCE": " (유사시설 조사 원단위, 재차인원 임시)", "EVIDENCE": " (유사시설 조사 원단위)", "USER": " (입력 원단위)"}.get(t.rates_status, ""), "auto")
     else:
         add("발생교통량 — 사업지(승용차)", None, "auto")
     add("발생교통량 — 주변가로 첨두시·1일(목표년도별)", None, "input", "주변가로 교통량 조사 결과가 필요(이 도구는 사업지 발생교통량만 계산)")

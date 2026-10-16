@@ -173,7 +173,11 @@ def test_entered_occupancy_replaces_provisional_and_upgrades_status():
 
 def test_occupancy_with_missing_metric_stays_partial():
     ev = UE.derive_rates(TODAY, facilities=[full("a", "2025-01-01")], car_occupancy=1.5)
-    assert ev.status == "PARTIAL_EVIDENCE" and ev.rates["apartment"]["car_occupancy"] == 1.5
+    assert ev.status == "PROVISIONAL" and ev.rates["apartment"]["car_occupancy"] == 1.5  # 유사시설 자료가 하나도 없으면 근거 상태가 아니다
+    mixed = [full(f"f{i}", "2025-01-0%d" % (i + 1), pop=3.5) for i in range(4)]
+    for f in mixed:
+        f.v["car"] = None  # 분담률만 비는 경우
+    assert UE.derive_rates(TODAY, facilities=mixed, car_occupancy=1.5).status == "PARTIAL_EVIDENCE"
 
 
 def test_project_occupancy_changes_vehicle_trips_in_both_modes():

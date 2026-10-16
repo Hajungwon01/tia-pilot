@@ -164,6 +164,7 @@ class DetailedApproach(BaseModel):
     offset_s: float = 0.0
     # 접근로가 속한 도로의 기능별 구분(설계속도 산정용: 도로 구조·시설 기준 규칙 제8조①). 비우면 개선 후보의 설계속도를 가정한다.
     road_class: Literal["arterial", "sub_arterial", "collector", "local"] | None = None
+    design_speed_kph: Literal[30, 40, 50, 60, 70, 80] | None = None  # 설계속도를 알면 직접 입력(도로 기능보다 우선)
     # 초기 대기차량(차로군 이름 → 대수). 계획분석에서는 비워 둔다(편람: 0으로 간주)
     initial_queue: dict[str, float] = Field(default_factory=dict)
 

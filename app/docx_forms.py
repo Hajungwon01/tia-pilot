@@ -143,7 +143,7 @@ def add_byeolji1(doc: Document, state: ReportState) -> None:
         t = state.trips
         r = rates_for(p)[0][p.land_use.value]
         prov = "" if t.rates_status != "PROVISIONAL" else " (임시 원단위)"
-        rest_note = " (임시 배분)" if t.rates_status in ("PARTIAL_EVIDENCE", "EVIDENCE") else ""  # 승용차 외 수단은 임시 비율을 스케일한 값
+        rest_note = " (임시 배분)" if t.rates_status in ("PARTIAL_EVIDENCE", "EVIDENCE", "USER") else ""  # 승용차 외 수단은 임시 비율을 스케일한 값
         occ_note = " (입력)" if p.car_occupancy is not None else " (임시)"  # 평균 재차인원은 유사시설 자료에 없어 입력하지 않으면 임시값
         sh = r["mode_share"]
         pk_name, pk = _peak_for_form(state)

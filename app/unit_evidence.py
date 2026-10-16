@@ -168,8 +168,40 @@ class EvidenceRates:
         return rows
 
 
+def apply_overrides(apt: dict, sources: dict, ov, notes: list[str]) -> None:
+    """사용자가 직접 입력한 원단위(RateOverrides)로 apt를 덮어쓰고 sources를 'user'로 바꾼다."""
+    if ov is None:
+        return
+    src = f" (출처: {ov.source.strip()})" if getattr(ov, "source", "").strip() else " (출처 미기재)"
+    if ov.person_trips_per_household is not None:
+        apt["daily_person_trips_per_household"] = ov.person_trips_per_household
+        sources["person_trips"] = "user"
+        notes.append(f"세대당 일 발생원단위: 사용자 입력 {ov.person_trips_per_household:g}인/일{src}")
+    if ov.car_share_pct is not None:
+        base = apt["mode_share"]
+        car = ov.car_share_pct / 100
+        others = sum(v for k, v in base.items() if k != "car")
+        rest = (1 - car) / others if others > 0 else 0
+        apt["mode_share"] = {k: (car if k == "car" else v * rest) for k, v in base.items()}
+        sources["car_share"] = "user"
+        notes.append(f"승용차 분담률: 사용자 입력 {ov.car_share_pct:g}%{src}")
+    for key, hour, i, o in (("am_peak", "am", ov.am_in_pct, ov.am_out_pct), ("pm_peak", "pm", ov.pm_in_pct, ov.pm_out_pct)):
+        if i is not None and o is not None:
+            apt["peak_hour"][hour] = {"ratio_of_daily": 0.5 * (i + o) / 100, "in_ratio": i / (i + o)}
+            sources[key] = "user"
+            notes.append(f"{hour.upper()} 첨두 유입·유출: 사용자 입력 {i:g}%·{o:g}%{src}")
+
+
+def status_from_sources(sources: dict, evidence_mode: bool) -> str:
+    """항목별 근거(user|evidence|provisional) → 결과 상태. 임시값이 남으면 근거 모드에서만 PARTIAL_EVIDENCE."""
+    vals = set(sources.values())
+    if "provisional" in vals:
+        return "PARTIAL_EVIDENCE" if (evidence_mode and ("evidence" in vals)) else "PROVISIONAL"
+    return "EVIDENCE" if "evidence" in vals else "USER"
+
+
 def derive_rates(today: date | None = None, region: str = HOME_REGION, facilities=None,
-                 car_occupancy: float | None = None) -> EvidenceRates:
+                 car_occupancy: float | None = None, overrides=None) -> EvidenceRates:
     """유사시설 자료로 trip_generation 형식의 원단위를 만든다. 필수 항목이 비면 임시값 항목을 유지하고 상태를 낮춘다.
 
     car_occupancy(사용자 입력 평균 재차인원)를 주면 임시값 대신 쓴다. 유사시설 항목이 모두 산출된 경우에만 상태가 EVIDENCE가 된다."""
@@ -211,15 +243,33 @@ def derive_rates(today: date | None = None, region: str = HOME_REGION, facilitie
         apt["parking"]["demand_per_household"] = m.value
     else:
         missing.append(LABELS["parking"])
+    sources = {"person_trips": "evidence", "car_share": "evidence", "am_peak": "evidence", "pm_peak": "evidence"}
+    for key, label in (("person_trips", "person_trips"), ("car_share", "car_share"), ("am_peak", "am_peak"), ("pm_peak", "pm_peak")):
+        if ms[key].value is None:
+            sources[key] = "provisional"
     for k in missing:
         notes.append(f"{k}: 근거 자료 부족 — 임시값 유지")
+    apply_overrides(apt, sources, overrides, notes)
     if car_occupancy is not None:
         apt["car_occupancy"] = car_occupancy
+        sources["occupancy"] = "user"
     else:
+        sources["occupancy"] = "provisional"
         notes.append("평균 재차인원은 이 자료에 없어 임시값(%g명) 유지" % base["car_occupancy"])
     for k, m in ms.items():
         notes += [f"{LABELS[k]}: {n}" for n in m.notes if "독립 근거" not in n]
-    status = "EVIDENCE" if car_occupancy is not None and not missing else "PARTIAL_EVIDENCE"
-    rates = {"_status": status, "_note": "유사시설 조사(교통영향평가정보지원시스템) 중앙값" + (" + 입력 재차인원" if car_occupancy is not None else " + 임시 재차인원"),
+    status = status_from_sources(sources, evidence_mode=True)
+    rates = {"_status": status, "_sources": sources,
+             "_note": "유사시설 조사(교통영향평가정보지원시스템) 중앙값 + 직접 입력값" + (" + 입력 재차인원" if car_occupancy is not None else " + 임시 재차인원"),
              "apartment": apt}
     return EvidenceRates(rates=rates, metrics=ms, status=status, notes=notes, today=today)
+
+
+def facility_rows(ev: EvidenceRates, limit: int = 40) -> list[list[str]]:
+    """보고서 부록용: 원단위 산출에 쓴 유사시설 목록(단지명·조사일·지역·조사방법), 조사일 최신순, 중복 제거."""
+    seen: dict[tuple[str, str], Facility] = {}
+    for m in ev.metrics.values():
+        for f in m.facilities:
+            seen.setdefault((f.name, f.date), f)
+    rows = sorted(seen.values(), key=lambda f: (f.date, f.name), reverse=True)
+    return [[f.name, f.date, f"{f.region} {f.district}".strip(), f.method or "미기재", f"{f.units:,}" if f.units else "-"] for f in rows[:limit]]

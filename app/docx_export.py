@@ -282,6 +282,32 @@ def _scenario_rows(state: ReportState) -> list[list[str]]:
     return rows
 
 
+def _add_rate_basis(doc: Document, state: ReportState) -> None:
+    """부록: 유발·주차 원단위의 근거(유사시설 조사 요약표·단지 목록, 직접 입력값). 임시값만 쓴 경우는 그렇다고만 적는다."""
+    p = state.project
+    t = state.trips
+    if p.rate_basis != "evidence" and not p.rate_overrides.given() and p.car_occupancy is None:
+        doc.add_paragraph("원단위 근거: 임시값(근거 자료 없음) — 수치는 잠정입니다.", style="List Bullet")
+        return
+    doc.add_heading("원단위 근거", level=2)
+    if t and t.rate_notes:
+        for n in t.rate_notes:
+            doc.add_paragraph(n, style="List Bullet")
+    if p.rate_basis == "evidence":
+        from app.unit_evidence import derive_rates, facility_rows
+
+        ev = derive_rates(car_occupancy=p.car_occupancy, overrides=p.rate_overrides)
+        doc.add_paragraph("유사시설 조사 자료: 국토교통부 교통영향평가정보지원시스템(tia.molit.go.kr)에 공개된 사업별 원단위정보(유사시설). "
+                          "조사일 3년 이내, 서울 우선(3건 미만이면 수도권), 중앙값(이상치 제외). 평가서가 입력한 값을 이 도구가 검증하지는 않았습니다.")
+        add_table(doc, ["항목", "중앙값", "25~75%", "사례 수", "범위", "지침 요건(실측 1+자료 3 또는 실측 3)"], ev.basis_rows())
+        rows = facility_rows(ev)
+        if rows:
+            doc.add_paragraph("원단위 산출에 쓴 유사시설(조사일 최신순, 최대 40곳):")
+            add_table(doc, ["단지", "조사일", "지역", "조사방법", "세대수"], rows)
+    if p.rate_overrides.given() and p.rate_overrides.source.strip():
+        doc.add_paragraph(f"직접 입력한 원단위 출처: {p.rate_overrides.source.strip()}", style="List Bullet")
+
+
 def add_toc(doc: Document) -> None:
     """Word 목차 필드(제목 1~3단계). 쪽번호는 Word에서 열어 필드를 갱신해야 채워진다."""
     p = doc.add_paragraph()
@@ -450,6 +476,7 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
     basis.append("유발교통량: 표준 원단위 기반 직접수요예측. 원단위가 임시값이면 수치는 잠정값입니다.")
     for line in basis:
         doc.add_paragraph(line, style="List Bullet")
+    _add_rate_basis(doc, state)
 
     # 열이 많은 법정 서식(별지 제1호, 참여전문인력 명단)은 가로 방향 쪽에 배치한다.
     _new_section(doc, landscape=True)

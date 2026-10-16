@@ -134,7 +134,11 @@ function buildPayload() {
         households: num(r.querySelector(".ut-hh").value) })).filter(u => u.exclusive_area_m2 !== null && u.households !== null),
       planned_parking_spaces: num($("planned").value), parking_demand_per_household: num($("pdem").value),
       parking_demand_source: $("psrc").value.trim(), rate_basis: $("rateEvidence").checked ? "evidence" : "provisional",
-      car_occupancy: num($("occ").value), car_occupancy_source: $("occsrc").value.trim() },
+      car_occupancy: num($("occ").value), car_occupancy_source: $("occsrc").value.trim(),
+      rate_overrides: stripNull({ person_trips_per_household: num($("ro_trips").value), car_share_pct: num($("ro_car").value),
+        am_in_pct: num($("ro_ami").value), am_out_pct: num($("ro_amo").value), pm_in_pct: num($("ro_pmi").value), pm_out_pct: num($("ro_pmo").value),
+        source: $("ro_src").value.trim() }),
+      min_green_s: num($("mingreen").value), cycle_search_min_s: num($("cmin").value), cycle_search_max_s: num($("cmax").value) },
     background_growth_rate: num($("growth").value) === null ? null : num($("growth").value) / 100,
     intersections: [],
     agency: null,
@@ -237,6 +241,7 @@ function dapHtml() {
     </div>
     <details><summary class="small">세부 조건 (U턴·곡선반경·차로폭·중차량·노변마찰·연동…)</summary>
       <div class="g3">
+        ${sel("설계속도 직접 입력(km/h)", "dp-dspd", [["", "모름(도로 기능으로 정함)"], ["30", "30"], ["40", "40"], ["50", "50"], ["60", "60"], ["70", "70"], ["80", "80"]])}
         ${sel("도로 기능(설계속도, 도시지역)", "dp-road", [["", "모름(집산도로 50km/h 가정)"], ["arterial", "주간선도로 80km/h"], ["sub_arterial", "보조간선도로 60km/h"], ["collector", "집산도로 50km/h"], ["local", "국지도로 40km/h"]])}
         ${num0("대향직진 Vo (맞은편 미지정 시)", "dp-vo", "0", 'min="0"')}
         ${num0("U턴 (vph)", "dp-u", "0", 'min="0"')}
@@ -399,7 +404,7 @@ function buildDetailed() {
       parking_vph: num(val(ap, "dp-pkv")), ped_per_hour: num(val(ap, "dp-ped")), ped_green_s: num(val(ap, "dp-gp")),
       right_channelized: chk(ap, "dp-chan"), coordinated: chk(ap, "dp-coord"), link_length_m: num(val(ap, "dp-link")),
       speed_kph: num(val(ap, "dp-spd")), offset_s: num(val(ap, "dp-off")),
-      initial_queue: parseQueue(val(ap, "dp-qb")), road_class: val(ap, "dp-road") || null,
+      initial_queue: parseQueue(val(ap, "dp-qb")), road_class: val(ap, "dp-road") || null, design_speed_kph: val(ap, "dp-dspd") ? Number(val(ap, "dp-dspd")) : null,
       project_share_left: (num(val(ap, "dp-sl")) || 0) / 100, project_share_through: (num(val(ap, "dp-st")) || 0) / 100,
       project_share_right: (num(val(ap, "dp-sr")) || 0) / 100,
     }));

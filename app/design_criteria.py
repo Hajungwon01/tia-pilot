@@ -97,8 +97,10 @@ def arrivals_per_cycle(v_left_vph: float, cycle_s: float) -> int:
     return max(1, math.ceil(v_left_vph * cycle_s / 3600 - 1e-9))
 
 
-def design_speed_for(road_class: str | None) -> tuple[int, str]:
-    """도로 기능별 구분 → (설계속도 km/h, 근거 설명). 모르면 집산도로 값을 가정하고 그렇다고 적는다."""
+def design_speed_for(road_class: str | None, entered: int | None = None) -> tuple[int, str]:
+    """(설계속도 km/h, 근거 설명). 직접 입력한 값 > 도로 기능별 구분 > 가정(집산도로 값) 순. 가정이면 그렇다고 적는다."""
+    if entered is not None:
+        return entered, f"설계속도 {entered}km/h(입력값)"
     if road_class in URBAN_DESIGN_SPEED:
         v = URBAN_DESIGN_SPEED[road_class]
         return v, f"{ROAD_CLASS_LABELS[road_class]}(도시지역) 설계속도 {v}km/h 이상, {LAW_REF}"
@@ -106,16 +108,17 @@ def design_speed_for(road_class: str | None) -> tuple[int, str]:
 
 
 def left_lane_note(v_left_vph: float, cycle_s: float, lane_width_m: float, heavy_pct: float,
-                   road_class: str | None = None) -> tuple[str, dict]:
+                   road_class: str | None = None, design_speed_kph: int | None = None) -> tuple[str, dict]:
     """개선 후보(전용 좌회전 차로 신설)에 붙이는 설명과 수치. 설계속도는 도로 기능에서 정하고, 모르면 가정이라고 문장에 명시한다."""
     n = arrivals_per_cycle(v_left_vph, cycle_s)
-    design_speed, basis = design_speed_for(road_class)
+    design_speed, basis = design_speed_for(road_class, design_speed_kph)
     std = left_turn_lane_length(n, design_speed, lane_width_m, heavy_pct)
     mn = left_turn_lane_length(n, design_speed, lane_width_m, heavy_pct, constrained=True)
     text = (f"전용 좌회전 차로 필요 길이 약 {std.length_m:g}m(기준치) · 용지 제약 시 {mn.length_m:g}m(최소치) "
             f"— 신호 1주기당 좌회전 {n}대, {basis}; {std.ref}")
     return text, {"arrivals": n, "design_speed": design_speed, "standard_m": std.length_m, "minimum_m": mn.length_m,
-                  "ref": std.ref, "road_class": road_class, "speed_assumed": road_class not in URBAN_DESIGN_SPEED}
+                  "ref": std.ref, "road_class": road_class,
+                  "speed_assumed": design_speed_kph is None and road_class not in URBAN_DESIGN_SPEED}
 
 
 def criteria_lines() -> list[str]:

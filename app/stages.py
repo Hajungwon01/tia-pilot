@@ -66,12 +66,12 @@ def _summary(approaches: list[Approach], cycle: float) -> dict:
 
 
 def analyze_stages(approaches: list[Approach], cycle: float, years: list[int],
-                   growth_rate: float, project_peak_total: float) -> dict[int, dict]:
+                   growth_rate: float, project_peak_total: float, min_green: float = MIN_GREEN) -> dict[int, dict]:
     out: dict[int, dict] = {}
     for y in years:
         without = scale_volumes(approaches, (1 + growth_rate) ** y)
         with_p = add_project_volume(without, project_peak_total)
-        improved = optimize_green(with_p)
+        improved = optimize_green(with_p, min_green)
         st = {
             "without": _summary(without, cycle),
             "with": _summary(with_p, cycle),
