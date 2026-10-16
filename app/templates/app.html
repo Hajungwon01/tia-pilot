@@ -83,7 +83,7 @@
           <div><label for="occsrc">재차인원 출처</label><input id="occsrc" maxlength="300" placeholder="예: 유사 단지 현장조사 2026-09"></div>
         </div>
         <details style="margin:6px 0 10px"><summary class="small">발생·분담률·첨두 원단위 직접 입력 (조사한 값이 있으면)</summary>
-          <p class="field-hint" style="margin:8px 0">넣은 항목만 유사시설 값·임시값보다 우선하고, 비운 항목은 그대로예요. 오전·오후 첨두는 유입과 유출을 둘 다 넣어야 해요(일 유입·유출 대비 %).</p>
+          <p class="field-hint" style="margin:8px 0">넣은 항목만 유사시설 값·임시값보다 우선하고, 비운 항목은 그대로예요. 오전·오후 첨두는 유입과 유출을 둘 다 넣어야 해요(일 유입·유출 대비 %). 수단분담률은 승용차를 포함해 5개를 모두 넣고 합이 100%여야 해요(별지 표에 그대로 들어가요).</p>
           <div class="grid">
             <div><label for="ro_trips">세대당 일 발생(인/일)</label><input id="ro_trips" type="number" min="0" max="30" step="any"></div>
             <div><label for="ro_car">승용차 분담률(%)</label><input id="ro_car" type="number" min="0" max="100" step="any"></div>
@@ -91,6 +91,10 @@
             <div><label for="ro_amo">오전 첨두 유출(%)</label><input id="ro_amo" type="number" min="0" max="100" step="any"></div>
             <div><label for="ro_pmi">오후 첨두 유입(%)</label><input id="ro_pmi" type="number" min="0" max="100" step="any"></div>
             <div><label for="ro_pmo">오후 첨두 유출(%)</label><input id="ro_pmo" type="number" min="0" max="100" step="any"></div>
+            <div><label for="ro_taxi">택시 분담률(%)</label><input id="ro_taxi" type="number" min="0" max="100" step="any"></div>
+            <div><label for="ro_bus">버스 분담률(%)</label><input id="ro_bus" type="number" min="0" max="100" step="any"></div>
+            <div><label for="ro_sub">전철 분담률(%)</label><input id="ro_sub" type="number" min="0" max="100" step="any"></div>
+            <div><label for="ro_oth">도보·자전거·기타(%)</label><input id="ro_oth" type="number" min="0" max="100" step="any"></div>
             <div><label for="ro_src">원단위 출처</label><input id="ro_src" maxlength="300" placeholder="조사 사례·관련 자료"></div>
           </div>
         </details>

@@ -156,3 +156,53 @@ def test_wizard_has_input_fields_and_sends_them():
         assert f'id="{fid}"' in html, fid
     for key in ("rate_overrides", "min_green_s", "cycle_search_min_s", "cycle_search_max_s", "design_speed_kph", "dp-dspd"):
         assert key in js, key
+
+
+# ── 수단분담률 직접 입력 ──
+MODES = dict(car_share_pct=30, taxi_share_pct=3, bus_share_pct=22, subway_share_pct=30, other_share_pct=15)
+
+
+def test_mode_split_requires_all_five_and_sum_100():
+    RateOverrides(**MODES)  # 합 100
+    RateOverrides(**{**MODES, "other_share_pct": 15.8})  # ±1 허용
+    with pytest.raises(ValidationError, match="모두 입력"):
+        RateOverrides(car_share_pct=30, bus_share_pct=70)
+    with pytest.raises(ValidationError, match="모두 입력"):
+        RateOverrides(taxi_share_pct=3, bus_share_pct=22, subway_share_pct=30, other_share_pct=45)  # 승용차 빠짐
+    with pytest.raises(ValidationError, match="합이"):
+        RateOverrides(**{**MODES, "other_share_pct": 25})
+    RateOverrides(car_share_pct=30)  # 승용차만은 그대로 허용(나머지는 임시 배분)
+
+
+def test_mode_split_is_used_and_does_not_change_vehicle_trips_or_status_rule():
+    only_car = estimate_trips(project(rate_overrides=RateOverrides(car_share_pct=30)))
+    full = estimate_trips(project(rate_overrides=RateOverrides(**MODES)))
+    assert full.daily_vehicle_trips == pytest.approx(only_car.daily_vehicle_trips)  # 승용차 분담률만 계산에 쓰인다
+    assert full.rates_status == only_car.rates_status == "PROVISIONAL"  # 표시용 분담은 상태에 영향 없음
+    from app.trip_generation import rates_for
+    ms = rates_for(project(rate_overrides=RateOverrides(**MODES)))[0]["apartment"]["mode_share"]
+    assert ms == pytest.approx({"car": 0.30, "taxi": 0.03, "bus": 0.22, "subway": 0.30, "walk_other": 0.15})
+
+
+def _table_text(st):
+    buf = io.BytesIO()
+    build_docx(st).save(buf)
+    doc = Document(io.BytesIO(buf.getvalue()))
+    return [[c.text for c in r.cells] for t in doc.tables for r in t.rows]
+
+
+def test_form_shows_entered_split_without_temporary_marks_and_marks_otherwise():
+    given = _table_text(run(ReportState(project=project(rate_basis="evidence", rate_overrides=RateOverrides(**MODES)))))
+    row = next(r for r in given if r and r[-1].startswith("1.3명/대"))
+    assert row[1:6] == ["30%", "3%", "22%", "30%", "15%"] and not any("임시 배분" in c for c in row)
+    default = _table_text(run(ReportState(project=project(rate_basis="evidence"))))
+    row2 = next(r for r in default if r and r[-1].startswith("1.3명/대"))
+    assert "(임시 배분)" in row2[3] and "(미구분)" in row2[2]
+
+
+def test_wizard_sends_mode_split():
+    c = TestClient(main.app)
+    html, js = c.get("/app").text, c.get("/static/wizard.js").text
+    for fid in ("ro_taxi", "ro_bus", "ro_sub", "ro_oth"):
+        assert f'id="{fid}"' in html and fid in js, fid
+    assert "taxi_share_pct" in js and "other_share_pct" in js

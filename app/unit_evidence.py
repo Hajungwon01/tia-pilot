@@ -185,6 +185,12 @@ def apply_overrides(apt: dict, sources: dict, ov, notes: list[str]) -> None:
         apt["mode_share"] = {k: (car if k == "car" else v * rest) for k, v in base.items()}
         sources["car_share"] = "user"
         notes.append(f"승용차 분담률: 사용자 입력 {ov.car_share_pct:g}%{src}")
+    if ov.taxi_share_pct is not None:  # 수단분담률 전체 입력(검증은 RateOverrides): 임시 배분 대신 입력값을 그대로 쓴다
+        apt["mode_share"] = {"car": ov.car_share_pct / 100, "taxi": ov.taxi_share_pct / 100, "bus": ov.bus_share_pct / 100,
+                             "subway": ov.subway_share_pct / 100, "walk_other": ov.other_share_pct / 100}
+        sources["mode_split"] = "user"
+        notes.append(f"수단분담률: 사용자 입력(승용 {ov.car_share_pct:g}·택시 {ov.taxi_share_pct:g}·버스 {ov.bus_share_pct:g}·전철 "
+                     f"{ov.subway_share_pct:g}·도보 및 기타 {ov.other_share_pct:g}%){src}")
     for key, hour, i, o in (("am_peak", "am", ov.am_in_pct, ov.am_out_pct), ("pm_peak", "pm", ov.pm_in_pct, ov.pm_out_pct)):
         if i is not None and o is not None:
             apt["peak_hour"][hour] = {"ratio_of_daily": 0.5 * (i + o) / 100, "in_ratio": i / (i + o)}
@@ -194,7 +200,7 @@ def apply_overrides(apt: dict, sources: dict, ov, notes: list[str]) -> None:
 
 def status_from_sources(sources: dict, evidence_mode: bool) -> str:
     """항목별 근거(user|evidence|provisional) → 결과 상태. 임시값이 남으면 근거 모드에서만 PARTIAL_EVIDENCE."""
-    vals = set(sources.values())
+    vals = {v for k, v in sources.items() if k != "mode_split"}  # 승용차 외 수단 분담은 계산에 쓰이지 않고 서식에만 표시되므로 상태에 영향 없음
     if "provisional" in vals:
         return "PARTIAL_EVIDENCE" if (evidence_mode and ("evidence" in vals)) else "PROVISIONAL"
     return "EVIDENCE" if "evidence" in vals else "USER"

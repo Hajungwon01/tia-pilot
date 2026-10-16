@@ -40,11 +40,28 @@ class RateOverrides(BaseModel):
 
     person_trips_per_household: float | None = Field(default=None, gt=0, le=30)  # 세대당 일 발생(인/일)
     car_share_pct: float | None = Field(default=None, ge=0, le=100)  # 승용차 분담률(%)
+    # 승용차 외 수단분담률(%): 넷을 모두 넣고 승용차 분담률과 합이 100(±1)이어야 한다. 별지 서식의 수단분담률 표에 그대로 들어간다.
+    taxi_share_pct: float | None = Field(default=None, ge=0, le=100)
+    bus_share_pct: float | None = Field(default=None, ge=0, le=100)
+    subway_share_pct: float | None = Field(default=None, ge=0, le=100)  # 도시철도(전철)
+    other_share_pct: float | None = Field(default=None, ge=0, le=100)  # 도보·자전거·기타
     am_in_pct: float | None = Field(default=None, ge=0, le=100)  # 오전 첨두시 유입(일 유입 대비 %)
     am_out_pct: float | None = Field(default=None, ge=0, le=100)
     pm_in_pct: float | None = Field(default=None, ge=0, le=100)
     pm_out_pct: float | None = Field(default=None, ge=0, le=100)
     source: str = Field(default="", max_length=300)  # 조사·자료 출처
+
+    @model_validator(mode="after")
+    def _modes(self):
+        others = (self.taxi_share_pct, self.bus_share_pct, self.subway_share_pct, self.other_share_pct)
+        if all(v is None for v in others):
+            return self
+        if any(v is None for v in others) or self.car_share_pct is None:
+            raise ValueError("수단분담률은 승용차·택시·버스·전철·도보 및 기타를 모두 입력하세요.")
+        total = self.car_share_pct + sum(others)
+        if abs(total - 100) > 1.0:
+            raise ValueError(f"수단분담률의 합이 {total:g}%입니다(100%여야 합니다).")
+        return self
 
     @model_validator(mode="after")
     def _pairs(self):
