@@ -1,3 +1,4 @@
+from app.design_criteria import criteria_lines
 from app.improvement import scenario_lines
 from app.state import ReportState
 
@@ -19,7 +20,8 @@ SYSTEM = (
     "[규칙]\n"
     "1. 숫자는 [분석 결과]에 있는 값만 그대로 인용하세요. 새 수치를 만들거나 계산하지 마세요. "
     "개선방안에는 [분석 결과]에 없는 구체 수치(예: 녹색시간 N초 연장)를 제안하지 말고 '검토 필요'처럼 방향만 쓰세요. "
-    "[개선 후보]가 있으면 그 후보와 수치만 인용할 수 있고, '물리적 개선'은 용지·도로폭·교통안전 검토 전의 검토 후보라고 밝히세요.\n"
+    "[개선 후보]가 있으면 그 후보와 수치만 인용할 수 있고, '물리적 개선'은 용지·도로폭·교통안전 검토 전의 검토 후보라고 밝히세요. "
+    "시행 가능성은 [설계 기준]에 적힌 기준과 쪽수만 근거로 인용하고(없는 기준을 지어내지 말 것), 설계속도는 가정값이라고 밝히세요.\n"
     "2. [분석 결과]에 없는 사실(도로 구조, 차로수, 현재 설계의 적정성, 사고 이력 등)은 단정하지 말고 "
     "'현장 조사 필요'라고 쓰세요.\n"
     "3. 원인을 단정하지 마세요. 특히 용량 초과·포화는 [분석 결과]에서 v/c가 1 이상일 때만 쓸 수 있습니다. "
@@ -67,6 +69,9 @@ class AIAgent(BaseAgent):
                 lines.append(f"  - 녹색시간 재배분에 의한 지체 감소: {st['delay_reduction']:.1f}초/대")
                 if st.get("scenarios"):
                     lines += scenario_lines(n, y, st["scenarios"])
+        if any(st.get("scenarios", {}).get("scenarios") for years in state.stages.values() for st in years.values()):
+            lines.append("[설계 기준] 개선 후보의 물리적 시행 가능성을 검토할 때 인용할 수 있는 기준(원문 확인분):")
+            lines += criteria_lines()
         if not state.los:
             lines.append("교차로 실측 입력 없음")
         if state.warnings:

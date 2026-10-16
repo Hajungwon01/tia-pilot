@@ -20,6 +20,11 @@ LOS_MENTION = re.compile(r"LOS\s*(FFF|FF|[A-F])(?![A-Za-z])")
 OVER_CAPACITY = re.compile(r"용량\s*(?:을\s*)?초과|통행능력\s*(?:을\s*)?초과|포화\s*(?:상태|되)|v/c[^.\n]{0,12}1\s*(?:을\s*)?(?:초과|넘)")
 
 
+# 평면교차로 설계 지침(2004) 인용 기준에 나오는 수치(app/design_criteria.CITED_CRITERIA): 길이 계수 1.5·2.0, 자동차 길이 7.0m,
+# 차로 테이퍼 1:8·1:15·1:4, 교통섬 9·5·7㎡, 회전반경 15·12·10·6m, 쪽수 50·51·52·61·70
+DESIGN_CRITERIA_NUMBERS = (1.5, 2.0, 7.0, 8, 15, 4, 9, 5, 7, 12, 10, 6, 50, 51, 52, 61, 70)
+
+
 class FactTable:
     def __init__(self) -> None:
         self.numbers: set[float] = set()
@@ -88,6 +93,11 @@ def build_facts(state: ReportState) -> FactTable:
                 f.grades.add(sc["base_grade"])
                 for s in sc["scenarios"]:
                     f.add(s["avg_delay"], s["delay_reduction"], s["max_vc"], s["critical_vc"], s["cycle"], *s["greens"].values())
+                    d = s.get("design")
+                    if d:
+                        f.add(d["arrivals"], d["design_speed"], d["standard_m"], d["minimum_m"])
+                if sc["scenarios"]:
+                    f.add(*DESIGN_CRITERIA_NUMBERS)  # [설계 기준]은 개선 후보가 있을 때만 AI 입력에 들어가므로 그때만 인용을 허용한다
                     f.grades.add(s["grade"])
                     vcs.append(s["max_vc"])
             for stage in ("without", "with", "improved"):

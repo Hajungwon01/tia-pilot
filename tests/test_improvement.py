@@ -48,7 +48,7 @@ def test_scenario_result_matches_engine_recomputation():
     ix = four_leg()
     from app.improvement import _lane_candidates
 
-    sid, _, changed, _ = next(c for c in _lane_candidates(ix) if c[0] == "add_lane:NB")
+    sid, _, changed, _, _ = next(c for c in _lane_candidates(ix) if c[0] == "add_lane:NB")
     assert changed.approaches[2].lanes == ix.approaches[2].lanes + 1
     assert analyze_detailed(changed).delay < analyze_detailed(ix).delay  # NB 차로 증설은 지체를 줄인다
 

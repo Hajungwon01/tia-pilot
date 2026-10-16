@@ -9,6 +9,7 @@
 물리적 후보는 모두 `physical=True`(검토 후보)로 표시하고, 초기 대기차량은 후보 간 비교의 일관성을 위해 Qb=0으로 둔다.
 연동 구간(coordinated) 접근로가 있으면 주기를 바꾸면 연동(옵셋)이 깨지므로 주기 조정 후보를 만들지 않는다.
 """
+from app.design_criteria import left_lane_note
 from app.hcm_signal import DetailedIntersection, analyze_detailed
 from app.hcm_stages import reallocate_phase_greens, summarize
 from app.stages import MIN_GREEN
@@ -67,8 +68,8 @@ def _best_cycle(ix: DetailedIntersection) -> DetailedIntersection | None:
     return best
 
 
-def _lane_candidates(ix: DetailedIntersection) -> list[tuple[str, str, DetailedIntersection, list[str]]]:
-    """(id, 라벨, 변경된 교차로, 변경 내용) — 녹색시간 재배분은 아직 적용하지 않은 물리적 변경."""
+def _lane_candidates(ix: DetailedIntersection) -> list[tuple[str, str, DetailedIntersection, list[str], dict | None]]:
+    """(id, 라벨, 변경된 교차로, 변경 내용, 설계 기준 점검) — 녹색시간 재배분은 아직 적용하지 않은 물리적 변경."""
     out = []
     for i, a in enumerate(ix.approaches):
         if a.v_left + a.v_through + a.v_right <= 0:
@@ -77,26 +78,28 @@ def _lane_candidates(ix: DetailedIntersection) -> list[tuple[str, str, DetailedI
             apps = list(ix.approaches)
             apps[i] = a.model_copy(update={"lanes": a.lanes + 1})
             out.append((f"add_lane:{a.name}", f"{a.name} 접근로 차로 1개 증설", ix.model_copy(update={"approaches": apps}),
-                        [f"{a.name} 접근로 차로수 {a.lanes}개 → {a.lanes + 1}개"]))
+                        [f"{a.name} 접근로 차로수 {a.lanes}개 → {a.lanes + 1}개"], None))
         if a.topology in ("four_way", "t_no_right") and a.v_left > 0 and a.left_case in (4, 6):
             upd = {"left_case": 3} if a.left_case == 6 else {"left_case": 1, "left_phase": a.phase}
             apps = list(ix.approaches)
             apps[i] = a.model_copy(update=upd)
             kind = "비보호 전용" if a.left_case == 6 else "직좌동시 전용"
+            note, design = left_lane_note(a.v_left, ix.cycle, a.lane_width_m, a.heavy_pct)
             out.append((f"left_bay:{a.name}", f"{a.name} 접근로 전용 좌회전 차로 신설", ix.model_copy(update={"approaches": apps}),
-                        [f"{a.name} 접근로 좌회전 공용 차로 → {kind} 차로(좌회전 CASE {a.left_case} → {upd['left_case']}, 총 차로 1개 추가)"]))
+                        [f"{a.name} 접근로 좌회전 공용 차로 → {kind} 차로(좌회전 CASE {a.left_case} → {upd['left_case']}, 총 차로 1개 추가)", note],
+                        design))
     return out
 
 
 def _scenario(sid: str, kind: str, label: str, physical: bool, ix: DetailedIntersection, base: DetailedIntersection,
-              base_delay: float, changes: list[str]) -> dict:
+              base_delay: float, changes: list[str], design: dict | None = None) -> dict:
     res = analyze_detailed(ix)
     s = summarize(ix, res)
     cyc_note = [f"신호주기 {base.cycle:g}초 → {ix.cycle:g}초"] if abs(ix.cycle - base.cycle) > 1e-9 else []
     return {"id": sid, "kind": kind, "label": label, "physical": physical,
             "avg_delay": res.delay, "grade": res.los, "max_vc": s["max_vc"], "critical_vc": res.critical_vc,
             "delay_reduction": base_delay - res.delay, "cycle": ix.cycle, "greens": s["greens"],
-            "changes": cyc_note + changes}
+            "changes": cyc_note + changes, "design": design}
 
 
 def build_scenarios(with_project: DetailedIntersection) -> dict:
@@ -123,9 +126,10 @@ def build_scenarios(with_project: DetailedIntersection) -> dict:
         found.append(_scenario("cycle", "cycle", "신호주기 조정 + 녹색시간 재배분", False, cyc, base, base_delay, []))
 
     physical: list[tuple[dict, DetailedIntersection]] = []
-    for sid, label, changed, changes in _lane_candidates(base):
+    for sid, label, changed, changes, design in _lane_candidates(base):
         ix = _regreen(changed)
-        sc = _scenario(sid, sid.split(":")[0], label, True, ix, base, base_delay, changes + (["현시 녹색시간 재배분 병행"] if ix is not changed else []))
+        sc = _scenario(sid, sid.split(":")[0], label, True, ix, base, base_delay,
+                       changes + (["현시 녹색시간 재배분 병행"] if ix is not changed else []), design)
         physical.append((sc, ix))
         found.append(sc)
 
@@ -135,7 +139,7 @@ def build_scenarios(with_project: DetailedIntersection) -> dict:
             combo = _best_cycle(top_ix)
             if combo is not None:
                 found.append(_scenario("combo", "combo", f"{top_sc['label']} + 신호주기 조정", True, combo, base, base_delay,
-                                       top_sc["changes"][:1]))
+                                       top_sc["changes"][:1] + [c for c in top_sc["changes"][1:] if "필요 길이" in c], top_sc["design"]))
 
     found = [s for s in found if s["delay_reduction"] > MIN_GAIN]
     found.sort(key=lambda s: s["avg_delay"])
