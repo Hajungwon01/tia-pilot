@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="서울시 공동주택(아파트) 교통영향평가서 초안을 지침 기준으로 자동 작성하는 지원 도구">
 <title>{% block title %}교통영향평가 초안 자동화{% endblock %}</title>
-<script>try{var t=localStorage.getItem("tia-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script>try{var t=localStorage.getItem("tia-theme");var q=new URLSearchParams(location.search).get("theme");if(q==="light"||q==="dark")t=q;/* ?theme=light|dark 는 저장하지 않는 임시 적용(화면 캡처·공유용) */if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="stylesheet" href="/static/site.css">
 {% block head %}{% endblock %}
 </head>

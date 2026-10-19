@@ -225,3 +225,29 @@ def test_definition_caveat_is_reported_when_evidence_person_trips_used():
     build_docx(ev_state).save(buf)
     text = "\n".join(p.text for p in Document(io.BytesIO(buf.getvalue())).paragraphs)
     assert "유입 기준(" in text and "4.73" in text and "2.37" in text
+
+
+# ── 활동인구 = 상주 + 방문 ──
+def _res_use(pop_res, pop_use, n=4):
+    return [fac(f"f{i}", "2025-01-0%d" % (i + 1), pop_res=pop_res, pop_use=pop_use, car=26.0, park_wd=1.2, am_in=2.0, am_out=30.0, pm_in=14.0, pm_out=5.0)
+            for i in range(n)]
+
+
+def test_activity_population_adds_visitors_to_residents():
+    ev = UE.derive_rates(TODAY, facilities=_res_use(3.5, 1.1))
+    assert ev.rates["apartment"]["daily_person_trips_per_household"] == pytest.approx(4.6)
+    assert any("상주 3.5 + 방문 1.1" in n for n in ev.notes) and "visitors" in ev.metrics
+    assert any(r[0].startswith("세대당 일 발생(인/일, 방문") for r in ev.basis_rows())
+
+
+def test_visitors_missing_keeps_residents_only_and_says_so():
+    ev = UE.derive_rates(TODAY, facilities=_res_use(3.5, None))
+    assert ev.rates["apartment"]["daily_person_trips_per_household"] == 3.5
+    assert any("상주인구만 반영" in n for n in ev.notes) and ev.status != "PROVISIONAL"  # 방문 자료 부족이 근거 상태를 깎지는 않는다
+
+
+def test_visitors_ignore_implausible_values_and_user_override_replaces_the_sum():
+    assert UE.metric("visitors", _res_use(3.5, 9.0), TODAY).value is None  # 0.1~5 밖
+    from app.schemas import RateOverrides
+    ev = UE.derive_rates(TODAY, facilities=_res_use(3.5, 1.1), overrides=RateOverrides(person_trips_per_household=6.0))
+    assert ev.rates["apartment"]["daily_person_trips_per_household"] == 6.0  # 직접 입력은 상주+방문 합계로 본다

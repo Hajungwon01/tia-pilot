@@ -41,7 +41,7 @@ def _with_direction(rates: dict, project: ProjectInput, notes: list[str]) -> tup
     direction = project.rate_direction if given else "both"
     out = {**rates, "_direction": direction}
     if given:
-        notes = notes + ([ "세대당 발생원단위를 유입(하루 동안 단지로 들어오는 사람) 기준으로 해석 — 일 총 통행은 유입×2(유출=유입 가정). 경기연구원(2023)이 활동인구 발생원단위를 유입통행량으로 정의했으나 국토부 시스템 문서로는 확정하지 못함"]
+        notes = notes + ([ "세대당 발생원단위를 유입(하루 동안 단지로 들어오는 사람) 기준으로 해석 — 일 총 통행은 유입×2(유출=유입 가정). 평가 실무 문헌(김익기·송태호 2004: 유입·유출 중 많은 쪽을 활동인구 원단위로 삼음)과 경기연구원(2023)을 따랐으나 국토부 시스템 문서로는 확정하지 못함"]
                          if direction == "inflow" else
                          ["세대당 발생원단위를 유입+유출 양방향 합계로 해석(유입 기준으로 보면 일 통행이 이 값의 2배)"])
     return out, notes
