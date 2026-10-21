@@ -199,6 +199,9 @@ class DataAgent(BaseAgent):
             base = analyze_detailed(ix)
             used = {gr.phase for gr in base.groups}
             for ap in base.approaches:
+                if ap.detail.get("clamped"):
+                    state.warn(f"{ix.name} {ap.name}: 입력값이 극단적이라 차로군 보정계수가 하한(0.05)에 걸림 — {', '.join(ap.detail['clamped'])}. "
+                               "노변마찰(진출입·버스·주차)·횡단보행자·교통량 입력을 확인하세요(결과 신뢰 불가)")
                 if ap.detail.get("unused_queue"):
                     labels = ", ".join(sorted({g.label for g in ap.groups})) or "없음"
                     state.warn(f"{ix.name} {ap.name}: 초기 대기차량 키 {ap.detail['unused_queue']}에 해당하는 차로군이 없어 "

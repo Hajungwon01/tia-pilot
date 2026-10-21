@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.los import los_from_delay
 
+MIN_GROUP_FACTOR = 0.05  # 차로군 보정계수 하한. 극단 입력(노변마찰이 1시간을 넘는 등)에서 계수가 음수·0이 되면 포화교통류율이 음수가 되어 지체가 NaN이 된다
 S0 = 2200.0  # pcphgpl
 EFFECTIVE_GREEN_LOSS = 0.3  # 초
 T_HOURS = 0.25
@@ -266,9 +267,10 @@ def _left_El(a: DetailedApproach, Vo: float, N: int, VL: float, VTh: float, VLF:
         return 20.0  # 대향 직진이 접근로 용량 이상: 좌회전 불가 수준(상한)
     base = S0 / (Vo * P)
     gap = S0 * (1 - g_c) * Vo / cap
+    # 좌회전 차량은 직진 차량보다 빠를 수 없으므로 E_L ≥ 1.0. 식 8-5(CASE 6)는 좌회전이 매우 적고 직진이 매우 많으면(V_LF≫gap) 음수가 될 수 있다
     if case == 3:  # 식 8-4 (VLF=0)
-        return base + gap / VL
-    return base + (gap - VLF) / VL  # 식 8-5 (CASE 6)
+        return max(1.0, base + gap / VL)
+    return max(1.0, base + (gap - VLF) / VL)  # 식 8-5 (CASE 6)
 
 
 def _delay_components(V: float, S: float, g: float, G: float, C: float, Qb: float, pf: float) -> dict:
@@ -429,9 +431,13 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
 
     # ── 포화교통류율·용량·지체 ──
     groups: list[GroupResult] = []
+    clamped: list[str] = []
     for label, ph, n_i, V, f in raw_groups:
         if V <= 0:
             continue
+        if f < MIN_GROUP_FACTOR:  # 음수·0에 가까운 계수는 계산 불능이므로 하한을 두고 알린다(결과 detail["clamped"])
+            clamped.append(f"{label}({f:.3f})")
+            f = MIN_GROUP_FACTOR
         S = S0 * n_i * f * common
         G = ix.phases[ph].green
         g = G - EFFECTIVE_GREEN_LOSS
@@ -446,6 +452,7 @@ def analyze_approach(a: DetailedApproach, ix: DetailedIntersection) -> ApproachR
                                   pf=pf, delay=d["delay"], los=los_from_delay(d["delay"])))
     tot = sum(g.volume for g in groups)
     delay = sum(g.volume * g.delay for g in groups) / tot if tot > 0 else 0.0
+    detail["clamped"] = clamped
     detail["factors"] = {g.label: round(g.saturation / (S0 * g.lanes * common), 4) for g in groups}
     detail["unused_queue"] = sorted(set(a.initial_queue) - {g.label for g in groups})  # 오타 등으로 적용되지 않은 키
     return ApproachResult(name=a.name, groups=groups, delay=delay, los=los_from_delay(delay), detail=detail)
