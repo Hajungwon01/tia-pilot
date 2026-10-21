@@ -227,3 +227,43 @@ def test_dense_form_tables_use_empty_cells_not_repeated_placeholders(doc):
     body = [c.text for r in quant.rows[1:] for c in r.cells[3:9]]
     assert "[기재 필요]" not in body  # 칸마다 [기재 필요]가 줄바꿈되던 문제
     assert body.count("") > len(body) * 0.9
+
+
+# ── 실제 Word로 연 결과(2026-10-21)에서 발견한 표 레이아웃 문제 ──
+def test_add_table_fixes_column_widths_when_given(tmp_path):
+    from docx import Document
+    from docx.shared import Cm
+
+    from app.docx_export import add_table
+    doc = Document()
+    add_table(doc, ["a", "b", "c"], [["1", "2", "3"]], widths_cm=[2.0, 5.0, 9.0])
+    t = doc.tables[0]
+    assert t.autofit is False
+    for row in (t.rows[0], t.rows[1]):
+        got = [c.width.cm for c in row.cells]
+        assert got == pytest.approx([2.0, 5.0, 9.0], abs=0.01)  # EMU 반올림 오차 허용
+
+
+def test_scenario_table_has_fixed_widths_fitting_a4_and_moves_long_notes_out_of_cells():
+    from app.docx_export import SCENARIO_NOTE, SCENARIO_WIDTHS_CM, _scenario_rows
+    assert abs(sum(SCENARIO_WIDTHS_CM) - 16.0) < 0.05  # A4 세로 본문 폭(여백 2.5cm씩)
+    assert "51~52쪽" in SCENARIO_NOTE and "제8조" in SCENARIO_NOTE
+    import asyncio
+
+    from app.hcm_signal import DetailedApproach as A
+    from app.hcm_signal import DetailedIntersection as I
+    from app.hcm_signal import Phase as P
+    from app.pipeline import TIAPipeline
+    from app.schemas import ProjectInput
+    from app.state import ReportState
+
+    def ap(n, ph, vl, vt, vr, lanes=2, case=6, opp=None):
+        return A(name=n, topology="four_way", left_case=case, lanes=lanes, v_left=vl, v_through=vt, v_right=vr, phase=ph, opposing=opp, project_share_through=0.1)
+    ix = I(name="T", cycle=120, phf=0.95, phases=[P(green=40), P(green=40), P(green=25)],
+           approaches=[ap("EB", 0, 120, 900, 200, 3, 6, "WB"), ap("WB", 0, 100, 800, 150, 3, 6, "EB"), ap("NB", 1, 150, 700, 120, 2, 4), ap("SB", 1, 140, 650, 100, 2, 4)])
+    st = asyncio.run(TIAPipeline().run(ReportState(project=ProjectInput(name="t", address="서울", households=1000, gross_floor_area_m2=120000),
+                                                    detailed_intersections=[ix], background_growth_rate=0.02)))
+    rows = _scenario_rows(st)
+    assert rows and all(len(r) == len(SCENARIO_WIDTHS_CM) for r in rows)
+    bay = [r for r in rows if "전용 좌회전 차로 신설" in r[2]]
+    assert bay and all("평면교차로 설계 지침" not in r[-1] and "필요 길이" in r[-1] and "가정" in r[-1] for r in bay)  # 긴 근거는 표 밖 주석, 칸에는 수치와 '(가정)'만

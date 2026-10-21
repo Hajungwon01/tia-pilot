@@ -104,6 +104,7 @@
 | TIA-82 | 디스클레이머 상시 노출 | P0 | S5 | 완료 |
 | TIA-83 | 간단 인증(베타 초대 코드) | P1 | S6 | 완료(초대 코드 로그인, 사용자별 분리, 운영 설정 검증) |
 | TIA-97 | 교통량 조사 CSV 업로드(첨두시·PHF·이동류 교통량 자동 입력) | P1 | S4 | 완료(app/counts.py, 상세 교차로 카드) |
+| TIA-98 | Word 서식 확인(실제 Word로 열어 PDF 내보내기) | P1 | S6 | 완료(2026-10-21 샘플 30~35쪽: 표지·제출문·목차 필드 갱신·가로 쪽 전환 정상, 시나리오 표 열 폭 수정) |
 | TIA-84 | Railway 배포 + 환경변수·키 관리 | P0 | S6 | 준비 완료(railway.json·.python-version·docs/DEPLOY.md·scripts/predeploy_check.py), 실제 Railway 배포·환경변수 입력은 사용자 작업 |
 | TIA-85 | 도메인 연결 | P2 | S7 | 할 일 |
 

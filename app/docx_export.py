@@ -173,10 +173,13 @@ def add_text_block(doc: Document, text: str, highlight=False) -> None:
         i += 1
 
 
-def add_table(doc: Document, header: list[str], rows: list[list[str]]) -> None:
+def add_table(doc: Document, header: list[str], rows: list[list[str]], widths_cm: list[float] | None = None) -> None:
+    """표 추가. widths_cm을 주면 열 폭을 고정한다(주지 않으면 Word가 같은 폭으로 나눠 열이 많은 표는 글자가 세로로 쪼개진다)."""
     t = doc.add_table(rows=1, cols=len(header))
     t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    if widths_cm:
+        t.autofit = False
     for c, h in zip(t.rows[0].cells, header):
         c.text = ""
         _set_font(c.paragraphs[0].add_run(h), size=9.5, bold=True)
@@ -187,6 +190,12 @@ def add_table(doc: Document, header: list[str], rows: list[list[str]]) -> None:
         for c, v in zip(cells, r):
             c.text = ""
             _set_font(c.paragraphs[0].add_run(str(v)), size=9.5)
+    if widths_cm:
+        for col, w in zip(t.columns, widths_cm):
+            col.width = Cm(w)
+        for row in t.rows:
+            for c, w in zip(row.cells, widths_cm):
+                c.width = Cm(w)
     doc.add_paragraph()
 
 
@@ -272,13 +281,26 @@ def _stage_rows(state: ReportState) -> list[list[str]]:
     return rows
 
 
+SCENARIO_WIDTHS_CM = [2.4, 1.9, 3.0, 1.6, 1.3, 1.5, 4.3]  # A4 세로 본문 폭 16cm
+SCENARIO_NOTE = ("필요 길이는 평면교차로 설계 지침(2004) 51~52쪽의 식과 표 3.6·3.7로 계산했고 5m 단위로 올렸으며 신호 1주기당 좌회전 도착대수를 기준으로 합니다. "
+                 "설계속도는 입력값이거나 접근로 도로 기능의 도시지역 값(도로의 구조·시설 기준에 관한 규칙 제8조①)이고, 둘 다 없으면 50km/h로 가정했습니다.")
+
+
 def _scenario_rows(state: ReportState) -> list[list[str]]:
+    """개선 시나리오 비교표 행. 긴 설계 기준 설명은 표 밖 주석(SCENARIO_NOTE)으로 빼고 칸에는 수치만 싣는다."""
     rows = []
     for name, years in state.stages.items():
         for y, st in years.items():
             for s in (st.get("scenarios") or {}).get("scenarios", []):
-                rows.append([name, f"준공 후 {y}년", "물리적 개선(검토 후보)" if s["physical"] else "신호 조정", s["label"],
-                             f"{s['avg_delay']:.1f}", s["grade"], f"{s['delay_reduction']:.1f}", "; ".join(s["changes"]) or "-"])
+                d = s.get("design")
+                changes = []
+                for c in s["changes"]:
+                    if "필요 길이" in c and d:
+                        changes.append(f"필요 길이 {d['standard_m']:g}m(기준)·{d['minimum_m']:g}m(최소), 설계속도 {d['design_speed']}km/h" + ("(가정)" if d["speed_assumed"] else ""))
+                    else:
+                        changes.append(c)
+                rows.append([f"{name} ({y}년 후)", "물리적 개선(검토 후보)" if s["physical"] else "신호 조정", s["label"],
+                             f"{s['avg_delay']:.1f}", s["grade"], f"{s['delay_reduction']:.1f}", "; ".join(changes) or "-"])
     return rows
 
 
@@ -453,10 +475,11 @@ def build_docx(state: ReportState, today: date | None = None, show_refs: bool = 
             sc_rows = _scenario_rows(state)
             if sc_rows:
                 doc.add_heading("개선 시나리오 비교표 (검토 후보)", level=3)
-                add_table(doc, ["교차로", "목표년도", "구분", "개선안", "평균지체(초/대)", "LOS", "지체 감소(초/대)", "변경 내용"], sc_rows)
+                add_table(doc, ["교차로(준공 후)", "구분", "개선안", "지체(초/대)", "LOS", "감소(초/대)", "변경 내용"], sc_rows,
+                          widths_cm=SCENARIO_WIDTHS_CM)
                 n = doc.add_paragraph()
                 _set_font(n.add_run("※ 지체 감소는 사업 시행 시(초기 대기차량 미적용) 대비. 물리적 개선은 용지·도로폭·교통안전 검토 전의 "
-                                    "검토 후보이며 시행 가능성은 판단하지 않았습니다."), size=8.5, italic=True, color=(0x70, 0x70, 0x70))
+                                    "검토 후보이며 시행 가능성은 판단하지 않았습니다. " + SCENARIO_NOTE), size=8.5, italic=True, color=(0x70, 0x70, 0x70))
         if num == "3":
             for spec in charts["parking"]:
                 fig_no += 1

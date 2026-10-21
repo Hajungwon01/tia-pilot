@@ -298,4 +298,4 @@ def facility_rows(ev: EvidenceRates, limit: int = 40) -> list[list[str]]:
         for f in m.facilities:
             seen.setdefault((f.name, f.date), f)
     rows = sorted(seen.values(), key=lambda f: (f.date, f.name), reverse=True)
-    return [[f.name, f.date, f"{f.region} {f.district}".strip(), f.method or "미기재", f"{f.units:,}" if f.units else "-"] for f in rows[:limit]]
+    return [[f.name, f.date, f"{f.region} {f.district.split()[0] if f.district else ''}".strip(), f.method or "미기재", f"{f.units:,}" if f.units else "-"] for f in rows[:limit]]
