@@ -284,12 +284,12 @@ pre.doc { white-space: pre-wrap; font: 12.5px/1.6 ui-monospace, Menlo, Consolas,
 #result { scroll-margin-top: 80px; }
 .dash-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin: 6px 0 18px; }
 .dash-head h2 { font-size: 28px; font-weight: 900; letter-spacing: -.03em; } .dash-head .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 14px 0 6px; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 14px 0 6px; }  /* 카드 6개: 3열×2줄(좁은 화면은 아래 미디어쿼리에서 2열). 6열은 카드가 좁아 단어가 끊긴다 */
 .kpi { position: relative; padding: 18px 18px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; animation: pop .45s ease both; }
 .kpi:nth-child(2) { animation-delay: .05s; } .kpi:nth-child(3) { animation-delay: .1s; } .kpi:nth-child(4) { animation-delay: .15s; } .kpi:nth-child(5) { animation-delay: .2s; } .kpi:nth-child(6) { animation-delay: .25s; }
 .kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--line-2); }
 .kpi.ok::before { background: var(--ok); } .kpi.warn::before { background: var(--warn); } .kpi.bad::before { background: var(--bad); } .kpi.info::before { background: var(--brand); }
-.kpi small { color: var(--muted); font-weight: 800; font-size: 12px; letter-spacing: .05em; } .kpi b { display: block; font-size: 28px; font-weight: 900; letter-spacing: -.03em; margin: 5px 0 3px; line-height: 1.15; }
+.kpi small { color: var(--muted); font-weight: 800; font-size: 12px; letter-spacing: .05em; } .kpi b { display: block; word-break: keep-all; font-size: 28px; font-weight: 900; letter-spacing: -.03em; margin: 5px 0 3px; line-height: 1.15; }
 .kpi span { font-size: 13px; color: var(--ink-2); display: block; }
 @media (max-width: 600px) { .kpis { grid-template-columns: 1fr 1fr; gap: 10px; } .kpi { padding: 14px 12px; } .kpi b { font-size: 21px; } .kpi span { font-size: 12px; } .dash-head h2 { font-size: 23px; } }
 .alerts { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
