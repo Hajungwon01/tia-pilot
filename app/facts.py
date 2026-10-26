@@ -7,6 +7,7 @@ LLM은 숫자를 만들지 못한다는 원칙을 코드로 강제한다:
 """
 import re
 
+from app.semantic_rules import DEMAND_OVER_LEGAL, INOUT_AS_TREND, NO_DATA_HEDGE, UNSUPPORTED_USE, parking_shortage_claims, split_sentences
 from app.state import ReportState
 
 # 단위 뒤에는 조사(가·로·의…)가 흔히 붙으므로 허용하고, 다른 낱말의 일부인 경우만 제외한다
@@ -30,6 +31,8 @@ class FactTable:
         self.numbers: set[float] = set()
         self.grades: set[str] = set()
         self.max_vc: float | None = None
+        self.parking_not_short: bool = False  # 계획 ≥ 법정(또는 법정 미산정이면 판단 안 함)
+        self.transit_data: bool = False  # 대중교통·보행·자전거 이용 자료가 입력됨(현재 입력 항목이 없어 항상 False)
 
     def add(self, *vals: float | int | None) -> None:
         for v in vals:
@@ -57,6 +60,11 @@ def build_facts(state: ReportState) -> FactTable:
         f.add(t.daily_vehicle_trips, t.daily_person_trips)
     if state.parking:
         pk = state.parking
+        if pk.get("planned") is not None and pk.get("legal_total") is not None:
+            f.parking_not_short = pk["planned"] >= pk["legal_total"]
+            f.add(abs(pk["planned"] - pk["legal_total"]))
+        if pk.get("planned") is not None and pk.get("demand") is not None:
+            f.add(abs(pk["planned"] - pk["demand"]))
         f.add(pk.get("demand"), pk.get("legal_apartment"), pk.get("legal_total"), pk.get("planned"), pk.get("cap"),
               pk.get("cap_pct"), pk.get("planned_vs_legal_pct"), pk.get("demand_per_household"), pk.get("legal_others_total"))
     vcs = []
@@ -131,6 +139,14 @@ def verify_text(text: str, facts: FactTable) -> list[str]:
     for g in LOS_MENTION.findall(text):
         if g not in facts.grades:
             issues.append(f"계산되지 않은 등급 'LOS {g}'")
+    if facts.parking_not_short and parking_shortage_claims(text):
+        issues.append("계획 주차대수가 법정 이상인데 부족하다고 서술하거나 주차대수를 늘리라고 제안(주차 판정과 반대)")
+    if DEMAND_OVER_LEGAL.search(text):
+        issues.append("원단위법 수요와 법정 대수를 서로 '초과'로 비교(서로 다른 기준)")
+    if not facts.transit_data and any(UNSUPPORTED_USE.search(sent) and not NO_DATA_HEDGE.search(sent) for sent in split_sentences(text)):
+        issues.append("입력 자료가 없는 대중교통·보행·자전거 이용 수준을 단정(현황 자료 없음, 조사 필요로 써야 함)")
+    if INOUT_AS_TREND.search(text):
+        issues.append("유입·유출(같은 시간대의 방향별 값)을 시간에 따른 증가·감소로 서술")
     if OVER_CAPACITY.search(text) and not (facts.max_vc is not None and facts.max_vc >= 1.0):
         vc = "계산된 v/c 없음" if facts.max_vc is None else f"최대 v/c {facts.max_vc:.2f}"
         issues.append(f"용량 초과·포화 단정(근거: {vc})")

@@ -1,4 +1,5 @@
 from app.design_criteria import criteria_lines
+from app.parking import judgement_lines
 from app.improvement import scenario_lines
 from app.state import ReportState
 
@@ -30,7 +31,11 @@ SYSTEM = (
     "5. [유의사항]에 '임시' 표시가 있으면 해당 수치가 잠정값임을 문장에 밝히세요.\n"
     "6. [3단계 분석]이 있으면 사업 미시행→시행→개선 후 변화를 해당 수치로 비교해 서술하세요. "
     "악화·개선 여부는 수치 비교로만 판단하고, 개선방안의 근거로는 [3단계 분석]의 '개선 후' 계산만 인용하세요.\n"
-    "7. 초안이며 전문가 검토가 필요함을 전제로 쓰세요."
+    "7. 초안이며 전문가 검토가 필요함을 전제로 쓰세요.\n"
+    "8. 주차는 [주차 판정]의 방향(부족·여유·초과)을 그대로 따르세요. 계획이 법정 이상이면 '부족'이라 쓰지 말고, 주차대수를 늘리라고 제안하지 마세요. "
+    "법정 대수와 원단위법 수요는 서로 다른 기준이므로 한쪽이 다른 쪽을 '초과'한다고 쓰지 마세요.\n"
+    "9. [자료 없음]으로 표시된 항목(대중교통·보행·자전거 현황)은 이용 수준이나 불편을 단정하지 말고 '현황 자료 없음, 조사 필요'라고만 쓰세요. "
+    "차량 유입·유출은 같은 시간대의 방향별 값이므로 '유입이 35에서 452로 증가'처럼 시간 변화로 풀이하지 마세요."
 )
 
 
@@ -43,8 +48,9 @@ class AIAgent(BaseAgent):
         t = state.trips
         lines = [f"사업: {state.project.name} ({state.project.households}세대)"]
         if t:
-            lines.append(f"AM 첨두 유입 {t.am_peak.in_trips:.0f}/유출 {t.am_peak.out_trips:.0f}대/시, "
-                         f"PM 첨두 유입 {t.pm_peak.in_trips:.0f}/유출 {t.pm_peak.out_trips:.0f}대/시")
+            lines.append(f"사업지 승용차 발생: AM 첨두 유입 {t.am_peak.in_trips:.0f}/유출 {t.am_peak.out_trips:.0f}대/시, "
+                         f"PM 첨두 유입 {t.pm_peak.in_trips:.0f}/유출 {t.pm_peak.out_trips:.0f}대/시 "
+                         "(유입=단지로 들어오는 차량, 유출=단지에서 나가는 차량. 같은 시간대의 방향별 값이며 시간에 따른 증가·감소가 아님)")
         pk = state.parking
         if pk:
             lines.append(f"주차: 원단위법 수요 {pk['demand']:,.0f}대"
@@ -52,6 +58,9 @@ class AIAgent(BaseAgent):
                          + (f", 법정 {pk['legal_total']:,}대" if pk["legal_total"] is not None else ", 법정 대수 미산정")
                          + (f", 계획 {pk['planned']:,}대" if pk["planned"] is not None else ", 계획 대수 미입력")
                          + (f", 법정 대비 {pk['planned_vs_legal_pct']:.0f}%" if pk["planned_vs_legal_pct"] is not None else ""))
+        if pk:
+            lines.append("[주차 판정] " + " / ".join(judgement_lines(pk)))
+        lines.append("[자료 없음] 대중교통 이용률·노선·정류장, 보행·자전거 이용 현황과 시설은 입력된 자료가 없음 — 현황을 단정하지 말고 '현황 자료 없음, 조사 필요'로 쓸 것")
         for n, v in state.los.items():
             lines.append(f"{n}: 평균지체 {v['avg_delay']:.1f}초/대, LOS {v['grade']}")
             for r in v["results"]:

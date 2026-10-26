@@ -131,3 +131,27 @@ def assess_parking(p: ProjectInput) -> ParkingResult:
     if res.planned is not None:
         res.planned_vs_demand = res.planned - res.demand
     return res
+
+
+def judgement_lines(pk: dict) -> list[str]:
+    """주차 결과의 '방향'(부족/여유/초과)을 코드가 문장으로 확정한다. LLM이 124% 같은 비율을 뒤집어 해석하지 못하게 AI 입력에 그대로 넣는다."""
+    out: list[str] = []
+    planned, legal, demand = pk.get("planned"), pk.get("legal_total"), pk.get("demand")
+    if planned is None:
+        return ["계획 주차대수가 입력되지 않아 주차 적정성은 판단하지 않음(부족·여유를 서술하지 말 것)"]
+    if legal is None:
+        out.append("법정 주차대수가 산정되지 않아 법정 대비 판단은 하지 않음")
+    else:
+        pct = pk.get("planned_vs_legal_pct")
+        cap_pct, cap = pk.get("cap_pct"), pk.get("cap")
+        if planned < legal:
+            out.append(f"계획 {planned:,}대는 법정 {legal:,}대에 {legal - planned:,}대 미달 — 법정 기준으로 부족함")
+        elif cap is not None and planned > cap:
+            out.append(f"계획 {planned:,}대는 법정 {legal:,}대의 {pct:.0f}%로 권장 상한 {cap_pct:g}%({cap:,.0f}대)를 초과 — 초과 사유 명시 필요")
+        else:
+            out.append(f"계획 {planned:,}대는 법정 {legal:,}대의 {pct:.0f}%로 법정 이상이며 권장 상한 {cap_pct:g}% 이내 — 법정 기준으로 부족하지 않음(주차대수를 더 늘리라고 제안하지 말 것)")
+    if demand is not None:
+        diff = planned - demand
+        out.append(f"원단위법 수요 {demand:,.0f}대 대비 계획 {planned:,}대는 {abs(diff):,.0f}대 " + ("여유" if diff >= 0 else "부족"))
+    out.append("법정 대수와 원단위법 수요는 서로 다른 기준임(수요가 법정을 '초과'한다는 식으로 비교하지 말 것)")
+    return out
