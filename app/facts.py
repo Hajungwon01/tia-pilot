@@ -7,7 +7,8 @@ LLM은 숫자를 만들지 못한다는 원칙을 코드로 강제한다:
 """
 import re
 
-from app.semantic_rules import DEMAND_OVER_LEGAL, INOUT_AS_TREND, NO_DATA_HEDGE, UNSUPPORTED_USE, parking_shortage_claims, split_sentences
+from app.semantic_rules import (DEMAND_OVER_LEGAL, INOUT_AS_TREND, INTERSECTION_RESULT, NO_DATA_HEDGE, UNSUPPORTED_USE, mentioned_peaks,
+                               parking_shortage_claims, split_sentences)
 from app.state import ReportState
 
 # 단위 뒤에는 조사(가·로·의…)가 흔히 붙으므로 허용하고, 다른 낱말의 일부인 경우만 제외한다
@@ -18,7 +19,7 @@ UNIT_NUM = re.compile(
 )
 # \b는 한글을 단어 문자로 보므로 "LOS F입니다"를 놓친다 → 뒤에 영문자만 아니면 허용
 LOS_MENTION = re.compile(r"LOS\s*(FFF|FF|[A-F])(?![A-Za-z])")
-OVER_CAPACITY = re.compile(r"용량\s*(?:을\s*)?초과|통행능력\s*(?:을\s*)?초과|포화\s*(?:상태|되)|v/c[^.\n]{0,12}1\s*(?:을\s*)?(?:초과|넘)")
+OVER_CAPACITY = re.compile(r"용량\s*(?:을|이|가)?\s*초과|통행능력\s*(?:을|이|가)?\s*초과|포화\s*(?:상태|되)|v/c[^.\n]{0,12}1\s*(?:을\s*)?(?:초과|넘)")
 
 
 # 평면교차로 설계 지침(2004) 인용 기준에 나오는 수치(app/design_criteria.CITED_CRITERIA): 길이 계수 1.5·2.0, 자동차 길이 7.0m,
@@ -32,6 +33,8 @@ class FactTable:
         self.grades: set[str] = set()
         self.max_vc: float | None = None
         self.parking_not_short: bool = False  # 계획 ≥ 법정(또는 법정 미산정이면 판단 안 함)
+        self.parking_unknown: bool = False  # 계획 주차대수 미입력 → 부족·증설 서술 불가
+        self.los_peaks: set[str] = set()  # 교차로 분석에 쓴 입력 교통량의 첨두(am/pm)
         self.transit_data: bool = False  # 대중교통·보행·자전거 이용 자료가 입력됨(현재 입력 항목이 없어 항상 False)
 
     def add(self, *vals: float | int | None) -> None:
@@ -58,8 +61,10 @@ def build_facts(state: ReportState) -> FactTable:
         for pk in (t.am_peak, t.pm_peak):
             f.add(pk.in_trips, pk.out_trips, pk.total)
         f.add(t.daily_vehicle_trips, t.daily_person_trips)
+    f.los_peaks = {ix.peak for ix in [*state.intersections, *state.detailed_intersections]}
     if state.parking:
         pk = state.parking
+        f.parking_unknown = pk.get("planned") is None
         if pk.get("planned") is not None and pk.get("legal_total") is not None:
             f.parking_not_short = pk["planned"] >= pk["legal_total"]
             f.add(abs(pk["planned"] - pk["legal_total"]))
@@ -141,6 +146,11 @@ def verify_text(text: str, facts: FactTable) -> list[str]:
             issues.append(f"계산되지 않은 등급 'LOS {g}'")
     if facts.parking_not_short and parking_shortage_claims(text):
         issues.append("계획 주차대수가 법정 이상인데 부족하다고 서술하거나 주차대수를 늘리라고 제안(주차 판정과 반대)")
+    if facts.parking_unknown and parking_shortage_claims(text):
+        issues.append("계획 주차대수가 입력되지 않았는데 주차 부족을 서술하거나 주차대수 확충을 제안(판단 불가로 써야 함)")
+    if facts.los_peaks and any(INTERSECTION_RESULT.search(sent) and mentioned_peaks(sent) - facts.los_peaks for sent in split_sentences(text)):
+        names = "·".join(p.upper() for p in sorted(facts.los_peaks))
+        issues.append(f"교차로 지체·LOS를 분석하지 않은 첨두로 서술(입력 교통량은 {names} 첨두 1세트)")
     if DEMAND_OVER_LEGAL.search(text):
         issues.append("원단위법 수요와 법정 대수를 서로 '초과'로 비교(서로 다른 기준)")
     if not facts.transit_data and any(UNSUPPORTED_USE.search(sent) and not NO_DATA_HEDGE.search(sent) for sent in split_sentences(text)):

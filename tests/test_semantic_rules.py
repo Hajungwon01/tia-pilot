@@ -146,3 +146,53 @@ def test_negated_shortage_is_correct_and_not_flagged(text):
 def test_real_shortage_claims_are_still_flagged(text):
     from app.semantic_rules import parking_shortage_claims
     assert parking_shortage_claims(text)
+
+
+# ── 2026-10-27 다른 입력(법정 미달·계획 미입력·혼잡·교차로 없음)으로 돌린 실제 LLM 출력에서 찾은 유형 ──
+FALSE_POSITIVES_SEEN = [
+    "법정 주차 기준을 초과하고 있는 상황에서 주차대수를 늘리는 방안은 적절하지 않으므로, 운영 효율성 검토가 필요합니다.",  # 올바른 문장이 오탐
+    "따라서 법정 기준으로 볼 때 주차는 부족하지 않으며, 주차대수를 추가적으로 늘리라는 제안은 하지 않습니다.",
+    "대중교통의 이용률과 관련된 계량적 정보가 부족한 만큼, 향후 노선 및 정류장 조사가 필요합니다.",
+    "추가적인 주차대수를 늘리도록 제안할 필요는 없습니다.",  # '필요는 없다'
+    "이를 통해 대중교통 이용 접근성을 높이고, 지역 주민의 편의성을 증대시킬 수 있습니다.",  # 목표 서술('높이다')을 현황 단정으로 오탐
+    "향후 자전거 이용을 촉진하기 위해 자전거 도로의 설치, 자전거 주차 공간 확대, 안전 시설 강화가 검토되어야 합니다.",  # 자전거 주차
+]
+
+
+@pytest.mark.parametrize("text", FALSE_POSITIVES_SEEN)
+def test_correct_parking_sentences_seen_in_real_output_are_not_flagged(text):
+    assert verify_text(text, build_facts(make_state())) == []
+
+
+def test_transit_level_claims_still_flagged_after_goal_wording_fix():
+    facts = build_facts(make_state())
+    for t in ("대중교통 이용률이 높습니다.", "대중교통 이용이 낮은 편입니다.", "보행 이용이 활발합니다."):
+        assert verify_text(t, facts), t
+
+
+def test_unknown_planned_parking_blocks_shortage_and_expansion_claims():
+    facts = build_facts(make_state(None))
+    assert facts.parking_unknown is True
+    assert verify_text("개선방안으로는 주차대수를 추가로 확보할 수 있는 방안을 검토할 필요가 있습니다.", facts)
+    assert verify_text("주차가 부족합니다.", facts)
+    assert verify_text("계획된 주차대수가 입력되지 않아 주차 적정성은 판단할 수 없습니다.", facts) == []
+
+
+def test_intersection_results_must_use_the_analysed_peak_only():
+    facts = build_facts(make_state())  # 입력 교통량은 PM 첨두 1세트
+    assert facts.los_peaks == {"pm"}
+    assert verify_text("사거리의 평균 지체 시간은 AM 및 PM 첨두 시간대 모두 LOS C에 해당합니다.", facts)
+    assert verify_text("AM 첨두에는 평균 지체가 39.9초/대입니다.", facts)
+    assert verify_text("PM 첨두 기준 평균 지체는 39.9초/대, LOS C입니다.", facts) == []
+    assert verify_text("AM 첨두 유입은 35대/시, 유출은 452대/시입니다.", facts) == []  # 교통량 서술은 해당 없음
+
+
+def test_over_capacity_phrase_with_subject_particle_is_checked():
+    facts = build_facts(make_state())
+    facts.max_vc = 0.9  # 이 샘플은 3년차 v/c가 1을 넘으므로 v/c < 1인 경우를 직접 지정
+    assert verify_text("인근 도로망의 용량이 초과할 가능성이 있습니다.", facts)
+
+
+def test_system_prompt_requires_year_and_peak_labels():
+    assert "준공 후 1년" in SYSTEM and "[분석 시간대]" in SYSTEM
+    assert "[분석 시간대]" in AIAgent.__new__(AIAgent)._facts(make_state())
