@@ -76,8 +76,7 @@ class ReportState(BaseModel):
     parking: dict | None = None  # app.parking.ParkingResult.model_dump()
     los: dict[str, dict] = Field(default_factory=dict)  # 교차로명 -> {results, avg_delay, grade}
     stages: dict[str, dict] = Field(default_factory=dict)  # 교차로명 -> {목표년도 -> {without, with, improved}}
-    # Creative
-    artifacts: dict[str, str] = Field(default_factory=dict)  # 표/도표 (마크다운)
+    artifacts: dict[str, str] = Field(default_factory=dict)  # Engineering이 만드는 표 (마크다운)
     # 보고서 섹션: 체크리스트 key -> 본문. 작성한 에이전트가 소유.
     sections: dict[str, str] = Field(default_factory=dict)
     section_owner: dict[str, str] = Field(default_factory=dict)

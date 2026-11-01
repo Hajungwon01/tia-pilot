@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작동 흐름도</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2230;--sub:#5b6577;--line:#d5dae3;
+--code:#e3f0ff;--codeb:#2f6fb5;--llm:#fff0dd;--llmb:#c97a1a;--chk:#e6f6ea;--chkb:#2e8b4f;--io:#efe9fb;--iob:#6b4bb5;--bad:#fde8e8;--badb:#c43c3c}
+@media(prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b2029;--ink:#e8ebf2;--sub:#9aa4b8;--line:#2f3746;
+--code:#16304d;--codeb:#5aa2e8;--llm:#3a2a14;--llmb:#e0a050;--chk:#15341f;--chkb:#58c27c;--io:#2a2145;--iob:#a48be0;--bad:#40191b;--badb:#e87878}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,"Malgun Gothic",sans-serif;padding:24px 16px 64px}
+main{max-width:980px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:40px 0 6px}
+p.lead{color:var(--sub);margin:0 0 8px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:14px 0 4px;font-size:13px;color:var(--sub)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;border:2px solid;vertical-align:-2px;margin-right:6px}
+.flow{display:flex;flex-direction:column;align-items:stretch;gap:0}
+.box{border:2px solid;border-radius:10px;padding:10px 14px;background:var(--card)}
+.box b{display:block;font-size:15px}.box small{display:block;color:var(--sub);font-size:12.5px;line-height:1.5}
+.code{background:var(--code);border-color:var(--codeb)}.llm{background:var(--llm);border-color:var(--llmb)}
+.chk{background:var(--chk);border-color:var(--chkb)}.io{background:var(--io);border-color:var(--iob)}.bad{background:var(--bad);border-color:var(--badb)}
+.arrow{align-self:center;color:var(--sub);font-size:18px;line-height:1.1;padding:3px 0}
+.row{display:flex;gap:12px}.row>*{flex:1;min-width:0}
+.par{border:2px dashed var(--line);border-radius:12px;padding:10px;position:relative}
+.par>.tag{position:absolute;top:-11px;left:14px;background:var(--bg);padding:0 8px;font-size:12px;color:var(--sub)}
+.loop{border:2px dashed var(--chkb);border-radius:12px;padding:12px;position:relative;margin-top:6px}
+.loop>.tag{position:absolute;top:-11px;left:14px;background:var(--bg);padding:0 8px;font-size:12px;color:var(--chkb)}
+ul{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--sub)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+@media(max-width:640px){.row{flex-direction:column}}
+</style>
+</head>
+<body>
+<main>
+<h1>교통영향평가 초안 자동화 — 작동 흐름</h1>
+<p class="lead">원칙: <b>숫자는 코드가 계산하고, LLM은 문장만 쓰며, 쓴 문장은 다시 계산 결과와 대조한다.</b></p>
+<div class="legend">
+<span><i style="background:var(--code);border-color:var(--codeb)"></i>코드(규칙·계산)</span>
+<span><i style="background:var(--llm);border-color:var(--llmb)"></i>LLM(문장 작성)</span>
+<span><i style="background:var(--chk);border-color:var(--chkb)"></i>점검</span>
+<span><i style="background:var(--io);border-color:var(--iob)"></i>입력·출력</span>
+</div>
+
+<h2>1. 전체 흐름</h2>
+<div class="flow">
+ <div class="box io"><b>사용자 입력 (웹 마법사)</b><small>사업 개요(세대수·연면적·평형·계획 주차대수) · 교차로(교통량·차로·신호 현시) · 선택 입력(재차인원, 직접 원단위, 수단분담, 설계속도, 최소 녹색/주기) · 교통량 조사 CSV(15분 단위)</small></div>
+ <div class="arrow">▼</div>
+ <div class="box code"><b>요청 검증·비용 안전장치 <small style="display:inline">(service.py)</small></b><small>입력 검증 · 로그인/쿠키 · 호출 상한 · 작업 ID 발급 → SQLite 저장</small></div>
+ <div class="arrow">▼</div>
+ <div class="box code"><b>TIAPipeline (에이전트 5단계 + 재시도 루프)</b><small>아래 2절에서 상세 설명</small></div>
+ <div class="arrow">▼</div>
+ <div class="row">
+  <div class="box io"><b>결과 화면</b><small>KPI·LOS 게이지·개선 시나리오 표·경고 배지·유의사항</small></div>
+  <div class="box io"><b>Word(.docx) 보고서 초안</b><small>별표 1 순서 · 표 · 부록(원단위 근거) · 미작성 항목은 [미작성]으로 표시</small></div>
+ </div>
+</div>
+
+<h2>2. 에이전트 파이프라인</h2>
+<div class="flow">
+ <div class="box code"><b>① Planning — 대상 여부·범위 판정</b><small>규칙 기반(LLM 없음) · 교통영향평가 대상 규모, 심의 주체, 평가 범위·반경, 별표 3 중점분석 항목</small></div>
+ <div class="arrow">▼</div>
+ <div class="box code"><b>② Data — 모든 숫자를 여기서 계산</b>
+  <small>발생교통량(원단위·재차인원·수단분담·유입/유출) · 주차수요(원단위법) vs 법정·계획 · 신호교차로 LOS(도로용량편람 2013 제8장 CASE 1~6) · 3단계 분석(미시행/시행/개선) · 개선 시나리오(녹색 재배분·주기·차로 증설·전용 좌회전·조합) · 설계 기준(좌회전 차로 길이 등) · 유의사항</small></div>
+ <div class="arrow">▼</div>
+ <div class="box llm"><b>③ AI — 문단 작성 (LLM, 유일한 LLM 단계)</b><small>"문제점 및 개선방안" 7개 항목. 입력은 [분석 결과] + [주차 판정] + [자료 없음] + [분석 시간대] + [개선 후보] + [설계 기준] + [유의사항]. 규칙 1~10 준수</small></div>
+ <div class="arrow">▼</div>
+ <div class="box code"><b>④ Engineering — 표·문서 조립</b><small>LOS 표 생성 · 섹션을 별표 1 순서로 이어 붙임 · 없는 섹션은 [미작성]</small></div>
+ <div class="arrow">▼</div>
+ <div class="box chk"><b>⑤ Reflection — 점검</b><small>체크리스트 누락 · 정량 기준 판정 · <b>LLM 문장 환각·해석 점검</b>(3절)</small></div>
+ <div class="loop"><span class="tag">문제가 있으면 (LLM 실연결일 때, 최대 재시도 횟수까지)</span>
+  <div class="row">
+   <div class="box bad"><b>지적 섹션만 사유와 함께 재작성 요청</b><small>누락 또는 계산과 불일치한 섹션만 다시 ③ AI로</small></div>
+   <div class="box code"><b>④ → ⑤ 재실행</b><small>조립 후 다시 점검 · 통과하면 종료</small></div>
+  </div>
+ </div>
+</div>
+
+<h2>3. LLM 문장 점검 (facts.py · semantic_rules.py)</h2>
+<p class="lead">수치 점검과 의미 점검을 모두 통과해야 합니다. 실제 LLM 실행에서 찾은 오류 유형을 규칙으로 고정했습니다.</p>
+<div class="grid">
+ <div class="box chk"><b>수치</b><small>단위가 붙은 숫자는 계산 결과에 있어야 함 · 'LOS X'는 계산된 등급 · 용량 초과·포화는 v/c ≥ 1일 때만</small></div>
+ <div class="box chk"><b>주차</b><small>계획 ≥ 법정이면 '부족'·증설 제안 금지 · 계획 미입력이면 부족·증설 모두 금지 · 법정과 원단위법 수요를 '초과'로 비교 금지(부정문·자전거 주차는 오탐 제외)</small></div>
+ <div class="box chk"><b>자료 없음</b><small>대중교통·보행·자전거 이용 수준 단정 금지 → '현황 자료 없음, 조사 필요'</small></div>
+ <div class="box chk"><b>방향·시간대</b><small>유입/유출을 시간 증가로 풀이 금지 · 분석하지 않은 첨두(AM/PM)의 지체·LOS 서술 금지 · 준공 연도(1·3년) 명시</small></div>
+</div>
+
+<h2>4. 개선 시나리오 엔진 (improvement.py)</h2>
+<div class="flow">
+ <div class="box code"><b>현행(사업 시행) 신호교차로 상태</b></div>
+ <div class="arrow">▼</div>
+ <div class="row">
+  <div class="box code"><b>신호 조정</b><small>현시별 녹색시간 재배분 · 신호주기 탐색(최소 녹색·주기 범위 입력)</small></div>
+  <div class="box code"><b>물리적 개선(검토 후보)</b><small>차로 1개 증설 · 공용→전용 좌회전 · 조합</small></div>
+ </div>
+ <div class="arrow">▼</div>
+ <div class="box code"><b>시나리오마다 편람 계산 → 지체 감소순 정렬</b><small>전용 좌회전은 길이식(평면교차로 설계 지침 2004), 설계속도(도로의 구조·시설 기준에 관한 규칙 제8조)로 시행 가능성 표시 · 연동 접근로는 주기 변경 제외</small></div>
+</div>
+
+<h2>5. 근거 데이터</h2>
+<div class="grid">
+ <div class="box io"><b>유사시설 원단위</b><small>교통영향평가정보지원시스템 공개 자료(서울 우선, 3년 이내, 중앙값) · 직접 입력 가능 · 방향(유입/양방향) 불확실성 표시</small></div>
+ <div class="box io"><b>계산 기준</b><small>도로용량편람(2013) · 풀이 예제 2건으로 검증</small></div>
+ <div class="box io"><b>설계 기준</b><small>평면교차로 설계 지침(2004) · 도로의 구조·시설 기준에 관한 규칙</small></div>
+ <div class="box io"><b>한계</b><small>현장조사·도면은 생성 불가 · 우회전 2차로↑ 공용 미지원 · 실제 평가서와 비교 검증은 하지 않음</small></div>
+</div>
+</main>
+</body>
+</html>

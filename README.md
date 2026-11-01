@@ -27,7 +27,7 @@
 
 ## 어떻게 만들었나
 
-멀티 에이전트가 하나의 상태(`ReportState`)를 돌려 쓰며 자기 몫만 채웁니다: **Planning**(대상·범위) → **Data**(유발교통량·LOS·주차) → **Creative**(표·도표) ∥ **AI**(문제점·개선방안 문단) → **Engineering**(Word 조립) → **Reflection**(체크리스트·환각 점검, 필요 시 재작성). 자세한 구조와 설계 판단은 [ARCHITECTURE.md](ARCHITECTURE.md).
+멀티 에이전트가 하나의 상태(`ReportState`)를 돌려 쓰며 자기 몫만 채웁니다: **Planning**(대상·범위) → **Data**(유발교통량·LOS·주차) → **AI**(문제점·개선방안 문단) → **Engineering**(표·Word 조립) → **Reflection**(체크리스트·환각 점검, 필요 시 재작성). 자세한 구조와 설계 판단은 [ARCHITECTURE.md](ARCHITECTURE.md).
 
 - 백엔드: FastAPI, pydantic v2, python-docx, SQLite. 프런트: Jinja2 + 바닐라 JS/CSS(외부 CDN·폰트 없음, CSP 적용, 라이트·다크)
 - 테스트 408개(항상 mock LLM, 외부 호출 없음): `python -m pytest -q`
